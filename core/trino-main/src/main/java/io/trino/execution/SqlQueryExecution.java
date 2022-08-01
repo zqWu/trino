@@ -59,6 +59,7 @@ import io.trino.sql.planner.SubPlan;
 import io.trino.sql.planner.TypeAnalyzer;
 import io.trino.sql.planner.optimizations.PlanOptimizer;
 import io.trino.sql.planner.plan.OutputNode;
+import io.trino.sql.rewritemv.MaterializedViewRewriter;
 import io.trino.sql.tree.ExplainAnalyze;
 import io.trino.sql.tree.Query;
 import io.trino.sql.tree.Statement;
@@ -117,6 +118,7 @@ public class SqlQueryExecution
     private final NodeTaskMap nodeTaskMap;
     private final ExecutionPolicy executionPolicy;
     private final SplitSchedulerStats schedulerStats;
+    private final Analysis originalAnalysis;
     private final Analysis analysis;
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
@@ -189,7 +191,9 @@ public class SqlQueryExecution
             this.stateMachine = requireNonNull(stateMachine, "stateMachine is null");
 
             // analyze query
-            this.analysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
+            // this.analysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
+            this.originalAnalysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
+            this.analysis = mvRewrite();
 
             stateMachine.addStateChangeListener(state -> {
                 if (!state.isDone()) {
@@ -222,6 +226,10 @@ public class SqlQueryExecution
             this.taskSourceFactory = requireNonNull(taskSourceFactory, "taskSourceFactory is null");
             this.taskDescriptorStorage = requireNonNull(taskDescriptorStorage, "taskDescriptorStorage is null");
         }
+    }
+
+    private Analysis mvRewrite() {
+        return MaterializedViewRewriter.rewrite(getSession(), originalAnalysis);
     }
 
     private synchronized void registerDynamicFilteringQuery(PlanRoot plan)

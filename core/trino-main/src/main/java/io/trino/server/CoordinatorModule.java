@@ -112,6 +112,7 @@ import io.trino.sql.rewrite.ShowQueriesRewrite;
 import io.trino.sql.rewrite.ShowStatsRewrite;
 import io.trino.sql.rewrite.StatementRewrite;
 import io.trino.sql.rewrite.StatementRewrite.Rewrite;
+import io.trino.sql.rewritemv.MaterializedViewRewriteHelper;
 
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -256,6 +257,8 @@ public class CoordinatorModule
 
         // analyzer
         binder.bind(AnalyzerFactory.class).in(Scopes.SINGLETON);
+        // MaterializedViewRewriteHelper
+        binder.bind(MaterializedViewRewriteHelper.class).in(Scopes.SINGLETON);
 
         // statement rewriter
         binder.bind(StatementRewrite.class).in(Scopes.SINGLETON);
