@@ -105,12 +105,7 @@ import io.trino.sql.planner.PlanOptimizers;
 import io.trino.sql.planner.PlanOptimizersFactory;
 import io.trino.sql.planner.RuleStatsRecorder;
 import io.trino.sql.planner.SplitSourceFactory;
-import io.trino.sql.rewrite.DescribeInputRewrite;
-import io.trino.sql.rewrite.DescribeOutputRewrite;
-import io.trino.sql.rewrite.ExplainRewrite;
-import io.trino.sql.rewrite.ShowQueriesRewrite;
-import io.trino.sql.rewrite.ShowStatsRewrite;
-import io.trino.sql.rewrite.StatementRewrite;
+import io.trino.sql.rewrite.*;
 import io.trino.sql.rewrite.StatementRewrite.Rewrite;
 import io.trino.sql.rewritemv.MaterializedViewRewriteHelper;
 
@@ -268,6 +263,7 @@ public class CoordinatorModule
         rewriteBinder.addBinding().to(ShowQueriesRewrite.class).in(Scopes.SINGLETON);
         rewriteBinder.addBinding().to(ShowStatsRewrite.class).in(Scopes.SINGLETON);
         rewriteBinder.addBinding().to(ExplainRewrite.class).in(Scopes.SINGLETON);
+        rewriteBinder.addBinding().to(MaterializedViewRewrite.class).in(Scopes.SINGLETON);
 
         // planner
         binder.bind(PlanFragmenter.class).in(Scopes.SINGLETON);

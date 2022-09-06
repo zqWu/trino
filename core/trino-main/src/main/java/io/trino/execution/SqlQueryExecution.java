@@ -118,7 +118,7 @@ public class SqlQueryExecution
     private final NodeTaskMap nodeTaskMap;
     private final ExecutionPolicy executionPolicy;
     private final SplitSchedulerStats schedulerStats;
-    private final Analysis originalAnalysis;
+//    private final Analysis originalAnalysis;
     private final Analysis analysis;
     private final StatsCalculator statsCalculator;
     private final CostCalculator costCalculator;
@@ -191,9 +191,9 @@ public class SqlQueryExecution
             this.stateMachine = requireNonNull(stateMachine, "stateMachine is null");
 
             // analyze query
-            // this.analysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
-            this.originalAnalysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
-            this.analysis = mvRewrite();
+             this.analysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
+//            this.originalAnalysis = analyze(preparedQuery, stateMachine, warningCollector, analyzerFactory);
+//            this.analysis = mvRewrite();
 
             stateMachine.addStateChangeListener(state -> {
                 if (!state.isDone()) {
@@ -228,9 +228,9 @@ public class SqlQueryExecution
         }
     }
 
-    private Analysis mvRewrite() {
-        return MaterializedViewRewriter.rewrite(getSession(), originalAnalysis);
-    }
+//    private Analysis mvRewrite() {
+//        return MaterializedViewRewriter.rewrite(getSession(), originalAnalysis);
+//    }
 
     private synchronized void registerDynamicFilteringQuery(PlanRoot plan)
     {
