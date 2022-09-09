@@ -1,10 +1,14 @@
 package io.trino.sql.rewritemv.rewriter;
 
 import io.airlift.log.Logger;
-import io.trino.sql.tree.*;
+import io.trino.sql.tree.ComparisonExpression;
+import io.trino.sql.tree.DereferenceExpression;
+import io.trino.sql.tree.Expression;
+import io.trino.sql.tree.LogicalExpression;
 
 import java.util.*;
-import java.util.stream.Collectors;
+
+import static io.trino.sql.tree.ComparisonExpression.Operator.EQUAL;
 
 /**
  * rewrite where条件
@@ -73,13 +77,8 @@ class WhereRewriter {
             return null;
         }
 
-        // 现在认为2个list的 expression都是 "基本" 条件, 不能进行再细分
-        // 去掉比如 1=1 这样必然 true的条件
-        List<EqualWhere> orig2 = origRecords.stream().filter(EqualWhere::notAlwaysTrue).collect(Collectors.toList());
-        List<EqualWhere> mv2 = mvRecords.stream().filter(EqualWhere::notAlwaysTrue).collect(Collectors.toList());
-        // TODO
-        // 如果有 a=b and a=1, 自动添加 b=1 这个条件
-        // 如果有 多个一样的条件, 则合并, 如 where a=1 and a=1 => a=1
+        List<EqualWhere> orig2 = EqualWhere.preProcess(origRecords);
+        List<EqualWhere> mv2 = EqualWhere.preProcess(mvRecords);
 
         List<EqualWhere> same = new ArrayList<>();
         // 1. 检测 mv中的条件, orig都有
@@ -97,7 +96,8 @@ class WhereRewriter {
         List<Expression> remainItem = new ArrayList<>(orig2.size());
         for (EqualWhere remain : orig2) {
             if (remain.getColCount() == 0) { // 这个是个无关 col的形式
-                remainItem.add(remain.getExpression());
+                ComparisonExpression expr = new ComparisonExpression(EQUAL, remain.getValue1(), remain.getValue2());
+                remainItem.add(expr);
                 continue;
             }
 
@@ -116,7 +116,7 @@ class WhereRewriter {
                 }
             }
 
-            ComparisonExpression oneWhereAfterRewrite = new ComparisonExpression(remain.getExpression().getOperator(), newLeft, newRight);
+            ComparisonExpression oneWhereAfterRewrite = new ComparisonExpression(EQUAL, newLeft, newRight);
             remainItem.add(oneWhereAfterRewrite);
         }
 
@@ -210,10 +210,12 @@ class WhereRewriter {
         boolean support = false;
         if (expr instanceof ComparisonExpression) {
             ComparisonExpression c = (ComparisonExpression) expr;
-            if (c.getOperator() == ComparisonExpression.Operator.EQUAL) {
+            if (c.getOperator() == EQUAL) {
                 support = true;
             }
         }
         return support;
     }
+
+
 }

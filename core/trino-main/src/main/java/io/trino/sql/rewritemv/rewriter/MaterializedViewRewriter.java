@@ -26,8 +26,9 @@ public class MaterializedViewRewriter {
 
     public void process() {
         FastFilter fastFilter = new FastFilter(originalAnalysis, mvAnalysis);
-        isMvFit = true; // fastFilter.process();
-        if (isMvFit()) {
+        isMvFit = fastFilter.process();
+        // isMvFit = true;
+        if (!isMvFit()) {
             LOG.debug("fastFilter 未通过");
         }
         outStatement = doProcess();

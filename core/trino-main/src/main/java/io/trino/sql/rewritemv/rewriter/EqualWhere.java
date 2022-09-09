@@ -1,11 +1,11 @@
 package io.trino.sql.rewritemv.rewriter;
 
+import io.airlift.log.Logger;
 import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.Literal;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 import static java.util.Objects.requireNonNull;
 
@@ -19,7 +19,8 @@ import static java.util.Objects.requireNonNull;
  * fun(col1) = fun(col2),        如 trim(col1) = trim(col2)    ===> 不支持
  */
 class EqualWhere {
-    private final ComparisonExpression expression;
+    private static final Logger LOG = Logger.get(EqualWhere.class);
+
     private QualifiedSingleColumn colLeft;
     private QualifiedSingleColumn colRight;
     private Expression value1;
@@ -27,11 +28,10 @@ class EqualWhere {
     private int colCount = 0;
     private boolean notAlwaysTrue = true;
 
+    // TODO 这个改成 static of方法
     public EqualWhere(ComparisonExpression expression,
                       Map<Expression, QualifiedSingleColumn> resolvedFieldMap) {
         requireNonNull(expression, "expression is null");
-
-        this.expression = expression;
 
         if (ComparisonExpression.Operator.EQUAL != expression.getOperator()) {
             throw new UnsupportedOperationException("必须是 EQUAL 表达式");
@@ -80,8 +80,28 @@ class EqualWhere {
         }
     }
 
-    public ComparisonExpression getExpression() {
-        return expression;
+    public EqualWhere(Expression value1, Expression value2) {
+        this.value1 = value1;
+        this.value2 = value2;
+        if (Objects.equals(value1, value2)) {
+            notAlwaysTrue = false;
+        }
+        colCount = 0;
+    }
+
+    public EqualWhere(QualifiedSingleColumn colLeft, Expression value2) {
+        this.colLeft = colLeft;
+        this.value2 = value2;
+        colCount = 1;
+    }
+
+    public EqualWhere(QualifiedSingleColumn colLeft, QualifiedSingleColumn colRight) {
+        this.colLeft = colLeft;
+        this.colRight = colRight;
+        if (Objects.equals(colLeft, colRight)) {
+            notAlwaysTrue = false;
+        }
+        colCount = 2;
     }
 
     public QualifiedSingleColumn getColLeft() {
@@ -110,7 +130,19 @@ class EqualWhere {
 
     @Override
     public String toString() {
-        return expression.toString();
+        StringBuffer sb = new StringBuffer();
+        if (colLeft != null) {
+            sb.append(colLeft);
+        } else {
+            sb.append(value1);
+        }
+        sb.append("=");
+        if (colRight != null) {
+            sb.append(colRight);
+        } else {
+            sb.append(value2);
+        }
+        return sb.toString();
     }
 
     @Override
@@ -136,4 +168,85 @@ class EqualWhere {
     public int hashCode() {
         return Objects.hash(colLeft, colRight, colCount);
     }
+
+    /**
+     * util
+     * 等值 where的预处理
+     */
+    public static List<EqualWhere> preProcess(List<EqualWhere> in) {
+        // ========= step: 过滤掉 true, 并把 equivalent Class 单独筛选出来
+        List<EqualWhere> singleColumn = new ArrayList<>(in.size());
+        List<EquivalentClass> ecList = new ArrayList<>(4);
+        for (EqualWhere equalWhere : in) {
+            if (!equalWhere.notAlwaysTrue()) { // 该条件一直为true, 比如 1=1这样
+                continue;
+            }
+
+            if (equalWhere.getColCount() == 2) { // colA = colB, 构成了一个 equivalent class
+                ecList.add(new EquivalentClass(equalWhere));
+            } else { //
+                singleColumn.add(equalWhere);
+            }
+        }
+
+        // ========= step: 合并 equivalent Class
+        // 比如 a=b c=d a=c 上面生成了 三个 ec, 需要合并成一个 a=b=c=d
+        List<EquivalentClass> mergedEc = EquivalentClass.fullMerge(ecList);
+
+        // ========= step:
+        // 有 ec: a=b=c, e=f=g
+        //   list: a=1, b=1, x=3
+        // ===>
+        //    ec: (1,a=b=c), (e=f=g), list: x=3
+        //    list: x=3
+        List<EqualWhere> result = new ArrayList<>(singleColumn.size() + 2);
+        for (EqualWhere equalWhere : singleColumn) {
+            QualifiedSingleColumn colLeft = equalWhere.getColLeft();
+            if (colLeft == null) {
+                result.add(equalWhere);
+                continue;
+            }
+            boolean inEc = false;
+            for (EquivalentClass ec : mergedEc) {
+                if (ec.contain(colLeft)) {
+                    if (!ec.setValueIfNecessary(equalWhere.getValue2())) {
+                        // 比如 a=1 a=b b=2 这样的组合
+                        LOG.warn(String.format("EquivalentClass 有2个不同的值 %s, %s", equalWhere.getValue2(), ec.getValue()));
+                        throw new RuntimeException(String.format("EquivalentClass 有2个不同的值 %s, %s", equalWhere.getValue2(), ec.getValue()));
+                    }
+                    inEc = true;
+                    break;
+                }
+            }
+            if (!inEc) { // 比如 a=1, 且有一个 ec 对应了 a=b=c=d
+                result.add(equalWhere);
+            }
+        }
+        // ========= step:
+        //    ec: (1,a=b=c), (e=f), list: x=3
+        //    list: x=3
+        // ==>
+        //    list: x=3, a=1 b=1 c=1,  e=f, e=g
+
+        for (EquivalentClass ec : mergedEc) {
+            if (ec.getValue() != null) {
+                Expression value = ec.getValue();
+                for (QualifiedSingleColumn c : ec.getColumns()) {
+                    result.add(new EqualWhere(c, value));
+                }
+            } else {
+                List<QualifiedSingleColumn> columns = new ArrayList<>(ec.getColumns().size());
+                columns.addAll(ec.getColumns());
+                Collections.sort(columns);
+
+                QualifiedSingleColumn min = columns.get(0);
+                for (int i = 1; i < columns.size(); i++) {
+                    result.add(new EqualWhere(min, columns.get(i)));
+                }
+            }
+        }
+
+        return result;
+    }
+
 }

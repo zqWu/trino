@@ -8,8 +8,15 @@ as select * from tpch.tiny.part;
 ```
 
 
-# case: 全等替代
-- mv定义
+# 单表简单处理
+- mv / original 都是单表
+- from 处理
+- where 条件的处理(目前处理等值条件)
+- select 处理
+- groupBy 处理 
+  - 目前支持 groupBy 字段1, 字段2, ...
+
+## mv定义
 ```sql
 create or replace materialized view iceberg.kernel_db01.mv_part_01 as
 SELECT mfgr mfgr2, brand, type type2, size size2
@@ -22,7 +29,7 @@ refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part_01;
 select * from iceberg.kernel_db01.mv_part_01;
 ```
 
-- sql定义, 符合替换条件
+## 测试sql, 预期能够替换
 ```sql
 SELECT mfgr, brand, type, count(1) as _cnt
 from iceberg.kernel_db01.part

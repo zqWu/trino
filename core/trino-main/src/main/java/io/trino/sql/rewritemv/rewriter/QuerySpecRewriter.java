@@ -150,7 +150,6 @@ class QuerySpecRewriter {
         return true;
     }
 
-    // TODO 根据论文 where这里需要进行非常细致的判断, 这里先略过了
     private Optional<Expression> processWhere() {
         return new WhereRewriter(this).process();
     }

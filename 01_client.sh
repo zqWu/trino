@@ -6,10 +6,11 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 --execute "
 SELECT iceberg.kernel_db01.part.mfgr, brand, type, count(1) as _cnt
 from iceberg.kernel_db01.part
-where 1=1
+    where 1=1
      and mfgr=mfgr
      and 'Manufacturer#1'=mfgr
-     and (brand='Brand#14' and size=7)
+     and (brand='Brand#14' and size_cp=3)
+     and size_cp=size
 GROUP BY mfgr, brand, type
 ;
 "
