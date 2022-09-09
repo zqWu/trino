@@ -4,11 +4,8 @@ import io.trino.Session;
 import io.trino.execution.warnings.WarningCollector;
 import io.trino.sql.analyzer.*;
 import io.trino.sql.rewritemv.MaterializedViewRewriteHelper;
-import io.trino.sql.rewritemv.MaterializedViewRewriter;
-import io.trino.sql.tree.Expression;
-import io.trino.sql.tree.NodeRef;
-import io.trino.sql.tree.Parameter;
-import io.trino.sql.tree.Statement;
+import io.trino.sql.rewritemv.MaterializedViewOptimization;
+import io.trino.sql.tree.*;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +16,12 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
 
     @Override
     public Statement rewrite(AnalyzerFactory analyzerFactory, Session session, Statement statement, List<Expression> parameters, Map<NodeRef<Parameter>, Expression> parameterLookup, WarningCollector warningCollector) {
+
+        // only apply to query, ignore else (eg. insert/ update / delete / ddl ...)
+        if (!(statement instanceof Query)) {
+            return statement;
+        }
+
         MaterializedViewRewriteHelper helper = MaterializedViewRewriteHelper.getInstance();
 
         // analyze 现在这个
@@ -27,8 +30,8 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
                 .createStatementAnalyzer(originalAnalysis, session, WarningCollector.NOOP, CorrelationSupport.ALLOWED);
         analyzer.analyze(statement, Optional.empty());
 
-        Analysis a2 = MaterializedViewRewriter.rewrite(session, originalAnalysis);
-        Statement resultStatement = a2.getStatement();
+        Statement resultStatement = MaterializedViewOptimization.rewrite(session, originalAnalysis);
         return resultStatement;
     }
+    // statement.queryBody {QuerySpecification}
 }

@@ -1221,6 +1221,12 @@ public class Analysis
                 .orElse(FALSE);
     }
 
+    public ImmutableSet<QualifiedObjectName> getTableName(){
+        return tables.values().stream()
+                .map(TableEntry::getName)
+                .collect(toImmutableSet());
+    }
+
     @Immutable
     public static final class SelectExpression
     {

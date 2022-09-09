@@ -16,25 +16,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class MaterializedViewRewriter {
-    private static final Logger LOG = Logger.get(MaterializedViewRewriter.class);
+public class MaterializedViewLoader {
+    private static final Logger LOG = Logger.get(MaterializedViewLoader.class);
     private static boolean sync = false;
     private static final Map<QualifiedObjectName, MvEntry> mvCache = new HashMap<>();
 
-    public static Analysis rewrite(Session session, Analysis original) {
+    public static Map<QualifiedObjectName, MvEntry> getMv(Session session) {
         loadMaterializedViewOnlyOnce(session);
-
-        for (MvEntry entry : mvCache.values()) {
-            Analysis mvAnalysis = entry.analysis;
-            MaterializedViewMatcher matcher = new MaterializedViewMatcher(mvAnalysis, original);
-            if (matcher.match()) {
-                LOG.debug("materialized view matches \n%s", entry.viewInfo.getOriginalSql());
-                // after match, rewrite original statement TODO
-                return mvAnalysis;
-            }
-        }
-
-        return original;
+        return mvCache;
     }
 
     /**
@@ -79,18 +68,4 @@ public class MaterializedViewRewriter {
         mvCache.put(name, entry);
     }
 
-    private static class MvEntry {
-        final QualifiedObjectName name;
-        final Statement statement;
-
-        final ViewInfo viewInfo;
-        final Analysis analysis;
-
-        public MvEntry(QualifiedObjectName name, Statement statement, ViewInfo viewInfo, Analysis analysis) {
-            this.name = name;
-            this.statement = statement;
-            this.viewInfo = viewInfo;
-            this.analysis = analysis;
-        }
-    }
 }
