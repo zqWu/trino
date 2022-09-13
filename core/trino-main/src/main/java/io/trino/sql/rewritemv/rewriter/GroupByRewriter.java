@@ -96,6 +96,7 @@ public class GroupByRewriter {
         } else {
             LOG.debug("2个group不一样, 需要把 original的group 都改写一遍");
             rewriteSimpleGroupBy(orig.isDistinct(), origListColumn);
+            processHaving();
         }
     }
 
@@ -114,7 +115,6 @@ public class GroupByRewriter {
 
         GroupBy groupBy = new GroupBy(isDistinct, groupingElements);
         resultGroupBy = Optional.of(groupBy);
-        processHaving();
     }
 
     private void processHaving() {

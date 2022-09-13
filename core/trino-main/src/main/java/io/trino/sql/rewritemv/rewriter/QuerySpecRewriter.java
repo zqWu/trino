@@ -132,24 +132,6 @@ class QuerySpecRewriter {
         return s;
     }
 
-    // TODO having进行判断, 类似 where判断
-    private boolean checkHaving(QuerySpecification originalSpec, QuerySpecification mvSpec) {
-        Optional<Expression> o1 = originalSpec.getHaving();
-        Optional<Expression> o2 = mvSpec.getHaving();
-        if (o1.isEmpty() && o2.isEmpty()) {
-            return true;
-        }
-        if (o1.isEmpty() || o2.isEmpty()) {
-            return false;
-        }
-        Expression v1 = o1.get();
-        Expression v2 = o2.get();
-        if (!Objects.equals(v1, v2)) {
-            return false;
-        }
-        return true;
-    }
-
     private Optional<Expression> processWhere() {
         return new WhereRewriter(this).process();
     }
