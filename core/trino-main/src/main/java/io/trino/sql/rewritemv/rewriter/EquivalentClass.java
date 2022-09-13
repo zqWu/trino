@@ -62,6 +62,7 @@ public class EquivalentClass {
         for (QualifiedSingleColumn q : columns) {
             sb.append(q.getColumnName()).append(',');
         }
+        sb.deleteCharAt(sb.length()-1);
         return sb.toString();
     }
 
@@ -134,7 +135,7 @@ public class EquivalentClass {
 
         List<EquivalentClass> list = Arrays.asList(e1, e2, e3, e4, e5, e6);
         List<EquivalentClass> last = fullMerge(list);
-        System.out.println(last);
+        System.out.println(last); // [colH,colE,colF,colG, colD,colA,colB,colC]
     }
 
 }
