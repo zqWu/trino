@@ -1,10 +1,10 @@
 package io.trino.sql.rewritemv.rewriter;
 
 import io.airlift.log.Logger;
+import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.tree.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * groupBy的处理策略:
@@ -16,17 +16,22 @@ import java.util.stream.Collectors;
  */
 public class GroupByRewriter {
     private static final Logger LOG = Logger.get(WhereRewriter.class);
-    private final QuerySpecRewriter querySpecRewriter;
+    private final MvDetail mvDetail;
+    private final QueryRewriter queryRewriter;
+    private final QuerySpecificationRewriter specRewriter;
     private final QuerySpecification originalSpec;
     private final QuerySpecification mvSpec;
     private Optional<GroupBy> resultGroupBy; // 保留下来的 groupBy
     private Optional<Expression> having;     // 保留下来的 having
     private Optional<Expression> where;      // 如果没有 having, 则改为 where条件
 
-    public GroupByRewriter(QuerySpecRewriter querySpecRewriter) {
-        this.querySpecRewriter = querySpecRewriter;
-        originalSpec = querySpecRewriter.getOriginalSpec();
-        mvSpec = querySpecRewriter.getMvSpec();
+    public GroupByRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail) {
+        this.mvDetail = mvDetail;
+        this.specRewriter = specRewriter;
+        this.queryRewriter = specRewriter.getQueryRewriter();
+
+        originalSpec = queryRewriter.getSpec();
+        mvSpec = mvDetail.getQuerySpecification();
 
         resultGroupBy = Optional.empty();
         having = Optional.empty();
@@ -104,7 +109,7 @@ public class GroupByRewriter {
         List<GroupingElement> groupingElements = new ArrayList<>(cols.size());
 
         for (QualifiedSingleColumn col : cols) {
-            DereferenceExpression colInMv = querySpecRewriter.correspondColumnInMv(col);
+            DereferenceExpression colInMv = RewriteUtils.correspondColumnInMv(col, mvDetail);
             if (colInMv == null) {
                 notFit("groupBy rewrite: mv not have field=" + col);
                 return;
@@ -135,7 +140,7 @@ public class GroupByRewriter {
                 return null;
             }
             Expression expr = expressions.get(0);
-            QualifiedSingleColumn qualifiedSingleColumn = querySpecRewriter.getOriginalColumnRefMap().get(expr);
+            QualifiedSingleColumn qualifiedSingleColumn = specRewriter.getOriginalColumnRefMap().get(expr);
             if (qualifiedSingleColumn == null) {
                 throw new RuntimeException("groupBy 字段的 expression找不到相关信息:" + expr);
             }
@@ -145,11 +150,11 @@ public class GroupByRewriter {
     }
 
     public boolean isMvFit() {
-        return querySpecRewriter.isMvFit();
+        return queryRewriter.isMvFit();
     }
 
     public void notFit(String reason) {
-        querySpecRewriter.notFit(reason);
+        queryRewriter.notFit(reason);
     }
 
     public Optional<GroupBy> getResultGroupBy() {

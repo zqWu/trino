@@ -1,10 +1,8 @@
 package io.trino.sql.rewritemv.rewriter;
 
 import io.airlift.log.Logger;
-import io.trino.sql.tree.ComparisonExpression;
-import io.trino.sql.tree.DereferenceExpression;
-import io.trino.sql.tree.Expression;
-import io.trino.sql.tree.LogicalExpression;
+import io.trino.sql.rewritemv.MvDetail;
+import io.trino.sql.tree.*;
 
 import java.util.*;
 
@@ -15,22 +13,26 @@ import static io.trino.sql.tree.ComparisonExpression.Operator.EQUAL;
  */
 class WhereRewriter {
     private static final Logger LOG = Logger.get(WhereRewriter.class);
-    private final QuerySpecRewriter querySpecRewriter;
+    private final QueryRewriter queryRewriter;
+    private final QuerySpecificationRewriter specRewriter;
+    private final MvDetail mvDetail;
     private final Optional<Expression> originalWhere;
     private final Optional<Expression> mvWhere;
 
-    public WhereRewriter(QuerySpecRewriter querySpecRewriter) {
-        this.querySpecRewriter = querySpecRewriter;
-        originalWhere = querySpecRewriter.getOriginalSpec().getWhere();
-        mvWhere = querySpecRewriter.getMvSpec().getWhere();
+    public WhereRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail) {
+        this.specRewriter = specRewriter;
+        this.queryRewriter = specRewriter.getQueryRewriter();
+        this.mvDetail = mvDetail;
+        originalWhere = queryRewriter.getSpec().getWhere();
+        mvWhere = mvDetail.getQuerySpecification().getWhere();
     }
 
-    public Optional<Expression> process() {
+    public Expression process() {
         if (originalWhere.isEmpty()) {
             if (mvWhere.isPresent()) {
                 notFit("where(original) = empty,  where(mv) != empty");
             }
-            return originalWhere;
+            return null;
         }
 
         Expression origExpr = originalWhere.get();
@@ -41,9 +43,9 @@ class WhereRewriter {
 
         Expression expr = compareAndRewriteWhere(origExpr, mvExpr);
         if (expr == null) {
-            return Optional.empty();
+            return null;
         }
-        return Optional.of(expr);
+        return expr;
     }
 
     /**
@@ -67,12 +69,12 @@ class WhereRewriter {
 
         // 先把所有的 where expression 打平
         List<EqualWhere> origRecords = new ArrayList<>();
-        if (!flattenAndNormalize(orig, origRecords, querySpecRewriter.getOriginalColumnRefMap())) {
+        if (!flattenAndNormalize(orig, origRecords, specRewriter.getOriginalColumnRefMap())) {
             notFit("original sql where无法处理");
             return null;
         }
         List<EqualWhere> mvRecords = new ArrayList<>();
-        if (!flattenAndNormalize(mv, mvRecords, querySpecRewriter.getMvColumnRefMap())) {
+        if (!flattenAndNormalize(mv, mvRecords, mvDetail.getColumnRefMap())) {
             notFit("mv sql where无法处理");
             return null;
         }
@@ -101,7 +103,7 @@ class WhereRewriter {
                 continue;
             }
 
-            DereferenceExpression newLeft = querySpecRewriter.correspondColumnInMv(remain.getColLeft());
+            DereferenceExpression newLeft = RewriteUtils.correspondColumnInMv(remain.getColLeft(), mvDetail);
             if (newLeft == null) {
                 notFit("original中的 where条件 无法通过改写满足" + remain.getColLeft().toString());
                 return null;
@@ -109,7 +111,7 @@ class WhereRewriter {
             // 处理 right表达式
             Expression newRight = remain.getValue2(); // 默认值
             if (remain.getColRight() != null) {
-                newRight = querySpecRewriter.correspondColumnInMv(remain.getColRight());
+                newRight = RewriteUtils.correspondColumnInMv(remain.getColRight(), mvDetail);
                 if (newRight == null) {
                     notFit("original中的 where条件 无法通过改写满足" + remain.getColRight().toString());
                     return null;
@@ -155,11 +157,11 @@ class WhereRewriter {
     }
 
     private boolean isMvFit() {
-        return querySpecRewriter.isMvFit();
+        return queryRewriter.isMvFit();
     }
 
     public void notFit(String reason) {
-        querySpecRewriter.notFit(reason);
+        queryRewriter.notFit(reason);
     }
 
     /**

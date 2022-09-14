@@ -1,5 +1,6 @@
 package io.trino.sql.rewritemv.rewriter;
 
+import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.tree.Expression;
@@ -15,6 +16,7 @@ import static java.util.Objects.requireNonNull;
  * 此类为了实现这一逻辑
  */
 public class EquivalentClass {
+    private static final Logger LOG = Logger.get(EquivalentClass.class);
     private Expression value;
     private Set<QualifiedSingleColumn> columns;
 
@@ -62,7 +64,7 @@ public class EquivalentClass {
         for (QualifiedSingleColumn q : columns) {
             sb.append(q.getColumnName()).append(',');
         }
-        sb.deleteCharAt(sb.length()-1);
+        sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
     }
 
@@ -107,7 +109,7 @@ public class EquivalentClass {
             notMerged.add(head);
             in = notMerged;
             notMerged = new ArrayList<>();
-            System.out.println(String.format("round %s, in.size()=%s", round, in.size()));
+            LOG.debug(String.format("round %s, in.size()=%s", round, in.size()));
         }
 
         return in;

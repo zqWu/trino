@@ -19,9 +19,9 @@ import java.util.Optional;
 public class MaterializedViewLoader {
     private static final Logger LOG = Logger.get(MaterializedViewLoader.class);
     private static boolean sync = false;
-    private static final Map<QualifiedObjectName, MvEntry> mvCache = new HashMap<>();
+    private static final Map<QualifiedObjectName, MvDetail> mvCache = new HashMap<>();
 
-    public static Map<QualifiedObjectName, MvEntry> getMv(Session session) {
+    public static Map<QualifiedObjectName, MvDetail> getMv(Session session) {
         loadMaterializedViewOnlyOnce(session);
         return mvCache;
     }
@@ -64,7 +64,7 @@ public class MaterializedViewLoader {
                 .createStatementAnalyzer(analysis, session, WarningCollector.NOOP, CorrelationSupport.ALLOWED);
         analyzer.analyze(statement, Optional.empty());
 
-        MvEntry entry = new MvEntry(name, statement, viewInfo, analysis);
+        MvDetail entry = new MvDetail(name, statement, viewInfo, analysis);
         mvCache.put(name, entry);
     }
 
