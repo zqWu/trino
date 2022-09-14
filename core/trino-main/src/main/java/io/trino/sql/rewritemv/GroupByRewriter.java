@@ -1,7 +1,6 @@
-package io.trino.sql.rewritemv.rewriter;
+package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
-import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.tree.*;
 
 import java.util.*;

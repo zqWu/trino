@@ -26,6 +26,8 @@ where  1=1
 GROUP BY mfgr, brand, type, size;
 
 refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part_02;
+
+select * from iceberg.kernel_db01.mv_part_02;
 ```
 
 ## 测试sql, 预期能够替换
@@ -38,4 +40,11 @@ where 1=1
      and (brand='Brand#14' and size_cp=7)
      and size_cp=size
 GROUP BY mfgr, brand, type
+;
+
+
 ```
+
+## 测试点
+- where
+  - equivalent class (size, size_cp)

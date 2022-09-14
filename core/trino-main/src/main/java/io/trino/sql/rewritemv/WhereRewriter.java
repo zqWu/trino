@@ -1,7 +1,6 @@
-package io.trino.sql.rewritemv.rewriter;
+package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
-import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.tree.*;
 
 import java.util.*;
@@ -16,18 +15,16 @@ class WhereRewriter {
     private final QueryRewriter queryRewriter;
     private final QuerySpecificationRewriter specRewriter;
     private final MvDetail mvDetail;
-    private final Optional<Expression> originalWhere;
-    private final Optional<Expression> mvWhere;
 
     public WhereRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail) {
         this.specRewriter = specRewriter;
         this.queryRewriter = specRewriter.getQueryRewriter();
         this.mvDetail = mvDetail;
-        originalWhere = queryRewriter.getSpec().getWhere();
-        mvWhere = mvDetail.getQuerySpecification().getWhere();
     }
 
     public Expression process() {
+        Optional<Expression> originalWhere = queryRewriter.getSpec().getWhere();
+        Optional<Expression> mvWhere = mvDetail.getQuerySpecification().getWhere();
         if (originalWhere.isEmpty()) {
             if (mvWhere.isPresent()) {
                 notFit("where(original) = empty,  where(mv) != empty");

@@ -1,8 +1,7 @@
-package io.trino.sql.rewritemv.rewriter;
+package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
 import io.trino.sql.analyzer.Analysis;
-import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.tree.*;
 
 import java.util.Optional;
@@ -13,7 +12,7 @@ import java.util.Optional;
 public class QueryRewriter extends AstVisitor<Node, MvDetail> {
     private static final Logger LOG = Logger.get(QueryRewriter.class);
     private final Analysis analysis;
-    private QuerySpecification spec;
+    private final QuerySpecification spec;
     private boolean isMvFit = true;
 
     public QueryRewriter(Analysis analysis) {

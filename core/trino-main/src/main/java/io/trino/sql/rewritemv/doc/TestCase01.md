@@ -31,6 +31,7 @@ select * from iceberg.kernel_db01.mv_part_01;
 
 ## 测试sql, 预期能够替换
 ```sql
+-- sql1
 SELECT mfgr, brand, type, count(1) as _cnt
 from iceberg.kernel_db01.part
     where 1=1
@@ -38,4 +39,25 @@ from iceberg.kernel_db01.part
     and 'Manufacturer#1'=mfgr
     and (brand='Brand#14' and size = 7)
 GROUP BY mfgr, brand, type
+;
+
+-- sql2
+SELECT mfgr, brand, type
+from iceberg.kernel_db01.part
+    where 1=1
+    and mfgr=mfgr
+    and 'Manufacturer#1'=mfgr
+    and (brand='Brand#14' and size = 7)
+GROUP BY mfgr, brand, type,size
+;
 ```
+## 测试点
+- where
+    - 1=1, 2=2能够去掉
+    - mfgr='Manufacturer#1' 和 'Manufacturer#1'=mfgr 能够处理, 仅是=左右两边换位置
+    - and(A and B) 能够处理成 and A and B
+    - 能够处理 逻辑相同的不同字段(size, size_2)
+
+- groupBy 能够处理
+  - 相同 groupBy
+  - 更少的 groupBy

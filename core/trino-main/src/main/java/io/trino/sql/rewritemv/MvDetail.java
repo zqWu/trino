@@ -3,8 +3,6 @@ package io.trino.sql.rewritemv;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.ViewInfo;
 import io.trino.sql.analyzer.Analysis;
-import io.trino.sql.rewritemv.rewriter.QualifiedSingleColumn;
-import io.trino.sql.rewritemv.rewriter.RewriteUtils;
 import io.trino.sql.tree.*;
 
 import java.util.List;

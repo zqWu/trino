@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.rewriter;
+package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;

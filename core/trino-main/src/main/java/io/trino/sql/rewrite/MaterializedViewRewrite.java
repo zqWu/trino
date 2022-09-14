@@ -7,7 +7,7 @@ import io.trino.sql.analyzer.*;
 import io.trino.sql.rewritemv.MaterializedViewLoader;
 import io.trino.sql.rewritemv.MaterializedViewRewriteHelper;
 import io.trino.sql.rewritemv.MvDetail;
-import io.trino.sql.rewritemv.rewriter.QueryRewriter;
+import io.trino.sql.rewritemv.QueryRewriter;
 import io.trino.sql.tree.*;
 
 import java.util.HashMap;

@@ -1,15 +1,17 @@
-package io.trino.sql.rewritemv.rewriter;
+package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
 import io.trino.metadata.QualifiedObjectName;
-import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.tree.*;
 
 import java.util.*;
 
-import static io.trino.sql.rewritemv.rewriter.RewriteUtils.extractNodeFieldMap;
-import static io.trino.sql.rewritemv.rewriter.RewriteUtils.getNameLastPart;
+import static io.trino.sql.rewritemv.RewriteUtils.extractNodeFieldMap;
+import static io.trino.sql.rewritemv.RewriteUtils.getNameLastPart;
 
+/**
+ * rewrite a specification by using a given mv if possible
+ */
 class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
     private static final Logger LOG = Logger.get(QuerySpecificationRewriter.class);
     private final QueryRewriter queryRewriter;
@@ -31,11 +33,15 @@ class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
 
         // from
         Relation relation = (Relation) process(node.getFrom().get(), mvDetail);
+
         // where
         Optional<Expression> where = processWhere(mvDetail);
+
+        // group having
         GroupByRewriter groupByRewriter = new GroupByRewriter(this, mvDetail);
         groupByRewriter.process();
 
+        // select
         Select select = processSelect(node, mvDetail);
 
         QuerySpecification spec = node;

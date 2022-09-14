@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.rewriter;
+package io.trino.sql.rewritemv;
 
 import io.trino.metadata.QualifiedObjectName;
 import org.jetbrains.annotations.NotNull;
