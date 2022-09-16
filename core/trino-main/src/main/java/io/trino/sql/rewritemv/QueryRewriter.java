@@ -2,7 +2,11 @@ package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
 import io.trino.sql.analyzer.Analysis;
-import io.trino.sql.tree.*;
+import io.trino.sql.tree.AstVisitor;
+import io.trino.sql.tree.Node;
+import io.trino.sql.tree.Query;
+import io.trino.sql.tree.QuerySpecification;
+import io.trino.sql.tree.With;
 
 import java.util.Optional;
 
@@ -43,13 +47,13 @@ public class QueryRewriter extends AstVisitor<Node, MvDetail> {
 
         // orderBy limit offset
         if (mvDetail.getQuery().getOrderBy().isPresent()) {
-            notFit("暂不支持mv中有 [orderBy]");
+            notFit("not support: mv has [orderBy]");
         }
         if (mvDetail.getQuery().getOffset().isPresent()) {
-            notFit("暂不支持mv中有 [offset]");
+            notFit("not support: mv has [offset]");
         }
         if (mvDetail.getQuery().getLimit().isPresent()) {
-            notFit("暂不支持mv中有 [limit]");
+            notFit("not support: mv has [limit]");
         }
 
         if (isMvFit()) {
@@ -67,7 +71,7 @@ public class QueryRewriter extends AstVisitor<Node, MvDetail> {
 
         Optional<With> o2 = mvDetail.getQuery().getWith();
         if (o2.isPresent()) {
-            notFit("TODO: 目前还不支持非空 [With] 子句");
+            notFit("not support: mv has [With] clause");
         }
         return with;
     }
@@ -84,7 +88,7 @@ public class QueryRewriter extends AstVisitor<Node, MvDetail> {
 
     public void notFit(String reason) {
         if (reason != null) {
-            LOG.debug("notFit, reason=%s", reason);
+            LOG.debug("notFit [%s]", reason);
         }
         isMvFit = false;
     }

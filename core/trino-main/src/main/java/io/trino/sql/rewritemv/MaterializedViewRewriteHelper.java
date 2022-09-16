@@ -5,9 +5,6 @@ import io.airlift.log.Logger;
 import io.trino.metadata.Metadata;
 import io.trino.sql.analyzer.StatementAnalyzerFactory;
 import io.trino.sql.parser.SqlParser;
-import io.trino.sql.rewrite.StatementRewrite;
-
-import static java.util.Objects.requireNonNull;
 
 public class MaterializedViewRewriteHelper {
     private static final Logger LOG = Logger.get(MaterializedViewRewriteHelper.class);

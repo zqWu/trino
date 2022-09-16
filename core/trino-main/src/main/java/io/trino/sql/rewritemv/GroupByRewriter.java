@@ -1,9 +1,21 @@
 package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
-import io.trino.sql.tree.*;
+import io.trino.sql.rewritemv.where.EquivalentClass;
+import io.trino.sql.tree.DereferenceExpression;
+import io.trino.sql.tree.Expression;
+import io.trino.sql.tree.GroupBy;
+import io.trino.sql.tree.GroupingElement;
+import io.trino.sql.tree.QuerySpecification;
+import io.trino.sql.tree.SimpleGroupBy;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * groupBy的处理策略:
@@ -14,15 +26,16 @@ import java.util.*;
  * - 如果是真子集, 则保留 groupBy, 并做必要 字段名修改
  */
 public class GroupByRewriter {
-    private static final Logger LOG = Logger.get(WhereRewriter.class);
+    private static final Logger LOG = Logger.get(GroupByRewriter.class);
     private final MvDetail mvDetail;
     private final QueryRewriter queryRewriter;
     private final QuerySpecificationRewriter specRewriter;
     private final QuerySpecification originalSpec;
     private final QuerySpecification mvSpec;
-    private Optional<GroupBy> resultGroupBy; // 保留下来的 groupBy
-    private Optional<Expression> having;     // 保留下来的 having
-    private Optional<Expression> where;      // 如果没有 having, 则改为 where条件
+    private Optional<GroupBy> resultGroupBy;    // 保留下来的 groupBy
+    private Optional<Expression> having;        // 保留下来的 having
+    private Optional<Expression> where;         // 如果没有 having, 则改为 where条件
+    private Set<QualifiedColumn> groupColumns; // 保存
 
     public GroupByRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail) {
         this.mvDetail = mvDetail;
@@ -47,7 +60,7 @@ public class GroupByRewriter {
         // 处理了 origGroup=空 的情况
         if (origGroupOpt.isEmpty()) {
             if (mvGroupOpt.isPresent()) {
-                notFit("groupBy rewrite: original 没有groupBy, 而 mv groupBy了, 无法改写");
+                notFit("groupBy rewrite: original has not groupBy, whereas mv has groupBy");
             }
             return;
         }
@@ -63,7 +76,7 @@ public class GroupByRewriter {
 
     private void compareAndRewriteGroup(GroupBy orig, GroupBy mv) {
         if (!Objects.equals(orig.isDistinct(), mv.isDistinct())) {
-            notFit("groupBy rewrite: groupBy isDistinct()不同, 无法改写");
+            notFit("groupBy rewrite: groupBy has different isDistinct()");
             return;
         }
         // isDistinct 相同了
@@ -71,50 +84,71 @@ public class GroupByRewriter {
         List<GroupingElement> origList = orig.getGroupingElements();
         List<GroupingElement> mvList = mv.getGroupingElements();
         if (mvList.size() < origList.size()) {
-            notFit("groupBy rewrite: mv的groupBy力度更粗粒, 无法改写");
+            notFit("groupBy rewrite: mv groupBy more coarse");
             return;
         }
 
         // 目前只支持 SimpleGroupBy
-        List<QualifiedSingleColumn> origListColumn = extractGroupColumn(origList);
-        if (origListColumn == null) {
+        List<QualifiedColumn> origGroupByColumn = extractGroupColumn(origList);
+        if (origGroupByColumn == null) {
             return;
         }
 
-        List<QualifiedSingleColumn> mvListColumn = extractGroupColumn(mvList);
-        if (mvListColumn == null) {
+        List<QualifiedColumn> mvGroupByColumn = extractGroupColumn(mvList);
+        if (mvGroupByColumn == null) {
             return;
         }
 
         // 确保所有的 orig中的 group 都在包含在mv的group中
-        for (QualifiedSingleColumn origCol : origListColumn) {
-            if (!mvListColumn.contains(origCol)) {
+        for (QualifiedColumn origCol : origGroupByColumn) {
+            if (mvGroupByColumn.contains(origCol)) {
+                // 该列 origCol 在 mvGroupByColumn 中
+                continue;
+            }
+
+            // 不直接包含, 通过ec进行查找
+            EquivalentClass ec = specRewriter.getEquivalentClassByColumn(origCol);
+            if (ec == null || ec.getColumns().size() == 1) { // size=1表面 只包含 origCol
                 notFit("groupBy rewrite: original group not contained in mv:" + origCol.toString());
                 return;
             }
+
+            // 该ec的一列 在 groupBy中
+            boolean mvAlsoGroupByThisEc = mvGroupByColumn.stream().anyMatch(col -> ec.contain(col));
+            if (!mvAlsoGroupByThisEc) {
+                LOG.debug("groupBy rewrite: using ec :" + origCol.toString());
+            }
         }
 
-        if (origListColumn.size() == mvListColumn.size()) {
-            LOG.debug("2个group一样, 不需要补充group");
+        if (origGroupByColumn.size() == mvGroupByColumn.size()) {
+            LOG.debug("original and mv has same groupBy, no compensation");
             processHaving();
         } else {
-            LOG.debug("2个group不一样, 需要把 original的group 都改写一遍");
-            rewriteSimpleGroupBy(orig.isDistinct(), origListColumn);
+            LOG.debug("original and mv has different groupBy, need compensation");
+            rewriteSimpleGroupBy(orig.isDistinct(), origGroupByColumn);
             processHaving();
         }
     }
 
-    private void rewriteSimpleGroupBy(boolean isDistinct, List<QualifiedSingleColumn> cols) {
-        List<GroupingElement> groupingElements = new ArrayList<>(cols.size());
+    private void rewriteSimpleGroupBy(boolean isDistinct, List<QualifiedColumn> origGroupColumn) {
+        List<GroupingElement> groupingElements = new ArrayList<>(origGroupColumn.size());
+        groupColumns = new HashSet<>();
 
-        for (QualifiedSingleColumn col : cols) {
-            DereferenceExpression colInMv = RewriteUtils.correspondColumnInMv(col, mvDetail);
+        for (QualifiedColumn col : origGroupColumn) {
+            EquivalentClass ec = specRewriter.getEquivalentClassByColumn(col);
+            DereferenceExpression colInMv = null;
+            if (ec != null) {
+                colInMv = RewriteUtils.findColumnInMv(ec, mvDetail);
+            } else {
+                colInMv = RewriteUtils.findColumnInMv(col, mvDetail);
+            }
             if (colInMv == null) {
                 notFit("groupBy rewrite: mv not have field=" + col);
                 return;
             }
             SimpleGroupBy simpleGroupBy = new SimpleGroupBy(Arrays.asList(colInMv));
             groupingElements.add(simpleGroupBy);
+            groupColumns.add(new QualifiedColumn(col.getTable(), colInMv.getField().get().getValue()));
         }
 
         GroupBy groupBy = new GroupBy(isDistinct, groupingElements);
@@ -126,24 +160,26 @@ public class GroupByRewriter {
 
     }
 
-    private List<QualifiedSingleColumn> extractGroupColumn(List<GroupingElement> groupingElements) {
-        List<QualifiedSingleColumn> resultList = new ArrayList<>(groupingElements.size());
+    private List<QualifiedColumn> extractGroupColumn(List<GroupingElement> groupingElements) {
+        List<QualifiedColumn> resultList = new ArrayList<>(groupingElements.size());
         for (GroupingElement element : groupingElements) {
             if (!(element instanceof SimpleGroupBy)) {
                 notFit("groupBy rewrite: only support SimpleGroupBy" + element);
                 return null;
             }
+
             List<Expression> expressions = element.getExpressions();
             if (expressions.size() != 1) {
                 notFit("groupBy rewrite: only support 1 column expression in group" + element);
                 return null;
             }
+
             Expression expr = expressions.get(0);
-            QualifiedSingleColumn qualifiedSingleColumn = specRewriter.getOriginalColumnRefMap().get(expr);
-            if (qualifiedSingleColumn == null) {
-                throw new RuntimeException("groupBy 字段的 expression找不到相关信息:" + expr);
+            QualifiedColumn qualifiedColumn = specRewriter.getColumnRefMap().get(expr);
+            if (qualifiedColumn == null) {
+                throw new RuntimeException("groupBy rewrite: column's expression cannot be found:" + expr);
             }
-            resultList.add(qualifiedSingleColumn);
+            resultList.add(qualifiedColumn);
         }
         return resultList;
     }
@@ -154,6 +190,12 @@ public class GroupByRewriter {
 
     public void notFit(String reason) {
         queryRewriter.notFit(reason);
+    }
+
+    // ======== get
+
+    public Set<QualifiedColumn> getGroupColumns() {
+        return groupColumns;
     }
 
     public Optional<GroupBy> getResultGroupBy() {

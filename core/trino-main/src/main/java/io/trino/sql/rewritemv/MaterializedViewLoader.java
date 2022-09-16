@@ -3,7 +3,11 @@ package io.trino.sql.rewritemv;
 import io.airlift.log.Logger;
 import io.trino.Session;
 import io.trino.execution.warnings.WarningCollector;
-import io.trino.metadata.*;
+import io.trino.metadata.CatalogInfo;
+import io.trino.metadata.Metadata;
+import io.trino.metadata.QualifiedObjectName;
+import io.trino.metadata.QualifiedTablePrefix;
+import io.trino.metadata.ViewInfo;
 import io.trino.sql.ParsingUtil;
 import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.CorrelationSupport;
@@ -16,10 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * TODO 未完成
+ */
 public class MaterializedViewLoader {
     private static final Logger LOG = Logger.get(MaterializedViewLoader.class);
     private static boolean sync = false;
-    private static final Map<QualifiedObjectName, MvDetail> mvCache = new HashMap<>();
+    private static Map<QualifiedObjectName, MvDetail> mvCache = new HashMap<>();
 
     public static Map<QualifiedObjectName, MvDetail> getMv(Session session) {
         loadMaterializedViewOnlyOnce(session);
@@ -66,6 +73,11 @@ public class MaterializedViewLoader {
 
         MvDetail entry = new MvDetail(name, statement, viewInfo, analysis);
         mvCache.put(name, entry);
+    }
+
+    public static void initForTest(Map<QualifiedObjectName, MvDetail> cache) {
+        mvCache = cache;
+        sync = true;
     }
 
 }

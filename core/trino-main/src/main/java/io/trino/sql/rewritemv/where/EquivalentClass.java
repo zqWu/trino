@@ -1,26 +1,40 @@
-package io.trino.sql.rewritemv;
+package io.trino.sql.rewritemv.where;
 
 import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;
 import io.trino.metadata.QualifiedObjectName;
-import io.trino.sql.tree.Expression;
+import io.trino.sql.rewritemv.QualifiedColumn;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * 逻辑等价:
- * where colA = colB and colA = 1
- * where colA = colB and colB = 1
- * 此类为了实现这一逻辑
+ * colA = colB
+ * colA = colC
+ * ===>
+ * colA = colB = colC
+ * 并且这个逻辑在后续的条件中继续起作用
  */
 public class EquivalentClass {
     private static final Logger LOG = Logger.get(EquivalentClass.class);
-    private Expression value;
-    private Set<QualifiedSingleColumn> columns;
+    private final Set<QualifiedColumn> columns;
 
-    public EquivalentClass(QualifiedSingleColumn c1, QualifiedSingleColumn c2) {
+    public EquivalentClass() {
+        columns = new HashSet<>();
+    }
+
+    public EquivalentClass(QualifiedColumn c1) {
+        requireNonNull(c1);
+        columns = new HashSet<>();
+        columns.add(c1);
+    }
+
+    public EquivalentClass(QualifiedColumn c1, QualifiedColumn c2) {
         requireNonNull(c1);
         requireNonNull(c2);
         columns = new HashSet<>();
@@ -28,28 +42,32 @@ public class EquivalentClass {
         columns.add(c2);
     }
 
-    public EquivalentClass(EqualWhere equalWhere) {
-        this(equalWhere.getColLeft(), equalWhere.getColRight());
+    public void add(QualifiedColumn c1, QualifiedColumn... c2) {
+        requireNonNull(c1);
+        columns.add(c1);
+        columns.addAll(Arrays.asList(c2));
     }
 
-    public EquivalentClass(Expression value, Set<QualifiedSingleColumn> columns) {
-        this.value = value;
-        this.columns = columns;
+    public void add(Set<QualifiedColumn> columns) {
+        this.columns.addAll(columns);
     }
 
     public EquivalentClass merge(EquivalentClass o) {
-        Set<QualifiedSingleColumn> s1 = new HashSet<>();
-        s1.addAll(columns);
+        Set<QualifiedColumn> s1 = new HashSet<>();
+        s1.addAll(this.columns);
         s1.addAll(o.columns);
-        return new EquivalentClass(value, s1);
+        EquivalentClass ec = new EquivalentClass();
+        ec.add(s1);
+        return ec;
     }
 
-    public boolean contain(QualifiedSingleColumn q) {
+    public boolean contain(QualifiedColumn q) {
         return columns.contains(q);
     }
 
-    public boolean equivalent(EquivalentClass o) {
-        for (QualifiedSingleColumn qsc : columns) {
+    /* 2个ec 是否有交集 */
+    public boolean hasCommonColumn(EquivalentClass o) {
+        for (QualifiedColumn qsc : columns) {
             if (o.columns.contains(qsc)) {
                 return true;
             }
@@ -57,31 +75,17 @@ public class EquivalentClass {
         return false;
     }
 
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        for (QualifiedSingleColumn q : columns) {
+        for (QualifiedColumn q : columns) {
             sb.append(q.getColumnName()).append(',');
         }
         sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
     }
 
-    public boolean setValueIfNecessary(Expression value) {
-        if (this.value == null) {
-            this.value = value;
-            return true;
-        } else {
-            return Objects.equals(this.value, value);
-        }
-    }
-
-    public Expression getValue() {
-        return value;
-    }
-
-    public Set<QualifiedSingleColumn> getColumns() {
+    public Set<QualifiedColumn> getColumns() {
         return columns;
     }
 
@@ -99,7 +103,7 @@ public class EquivalentClass {
             EquivalentClass head = in.get(0);
             for (int i = 1; i < in.size(); i++) {
                 EquivalentClass ec = in.get(i);
-                if (head.equivalent(ec)) {
+                if (head.hasCommonColumn(ec)) {
                     head = head.merge(ec);
                     mergeCount++;
                 } else {
@@ -117,15 +121,15 @@ public class EquivalentClass {
 
     public static void main(String[] args) {
         QualifiedObjectName table = new QualifiedObjectName("c", "s", "db");
-        QualifiedSingleColumn colA = new QualifiedSingleColumn(table, "colA");
-        QualifiedSingleColumn colB = new QualifiedSingleColumn(table, "colB");
-        QualifiedSingleColumn colC = new QualifiedSingleColumn(table, "colC");
-        QualifiedSingleColumn colD = new QualifiedSingleColumn(table, "colD");
+        QualifiedColumn colA = new QualifiedColumn(table, "colA");
+        QualifiedColumn colB = new QualifiedColumn(table, "colB");
+        QualifiedColumn colC = new QualifiedColumn(table, "colC");
+        QualifiedColumn colD = new QualifiedColumn(table, "colD");
 
-        QualifiedSingleColumn colE = new QualifiedSingleColumn(table, "colE");
-        QualifiedSingleColumn colF = new QualifiedSingleColumn(table, "colF");
-        QualifiedSingleColumn colG = new QualifiedSingleColumn(table, "colG");
-        QualifiedSingleColumn colH = new QualifiedSingleColumn(table, "colH");
+        QualifiedColumn colE = new QualifiedColumn(table, "colE");
+        QualifiedColumn colF = new QualifiedColumn(table, "colF");
+        QualifiedColumn colG = new QualifiedColumn(table, "colG");
+        QualifiedColumn colH = new QualifiedColumn(table, "colH");
 
         EquivalentClass e1 = new EquivalentClass(colA, colB); // A=B
         EquivalentClass e2 = new EquivalentClass(colC, colD); // C=D

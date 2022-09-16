@@ -10,12 +10,12 @@ import static java.util.Objects.requireNonNull;
 /**
  * 一个全限定 单个字段名
  */
-public class QualifiedSingleColumn implements Comparable<QualifiedSingleColumn> {
+public class QualifiedColumn implements Comparable<QualifiedColumn> {
     private final QualifiedObjectName table;
     private final String columnName;
 
     @Override
-    public int compareTo(@NotNull QualifiedSingleColumn o) {
+    public int compareTo(@NotNull QualifiedColumn o) {
         // 比较 catalogName
         int result = table.getCatalogName().compareTo(o.getTable().getCatalogName());
         if (result != 0) {
@@ -38,7 +38,7 @@ public class QualifiedSingleColumn implements Comparable<QualifiedSingleColumn> 
         return columnName.compareTo(o.columnName);
     }
 
-    public QualifiedSingleColumn(QualifiedObjectName table, String columnName) {
+    public QualifiedColumn(QualifiedObjectName table, String columnName) {
         requireNonNull(table, "table is null");
         requireNonNull(table.getCatalogName(), "table.catalog is null");
         requireNonNull(table.getSchemaName(), "table.schema is null");
@@ -59,17 +59,14 @@ public class QualifiedSingleColumn implements Comparable<QualifiedSingleColumn> 
 
     @Override
     public String toString() {
-        return "QualifiedSingleColumn{" +
-                "table=" + table +
-                ", columnName='" + columnName + '\'' +
-                '}';
+        return table + "." + columnName;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof QualifiedSingleColumn)) return false;
-        QualifiedSingleColumn that = (QualifiedSingleColumn) o;
+        if (!(o instanceof QualifiedColumn)) return false;
+        QualifiedColumn that = (QualifiedColumn) o;
         return Objects.equals(table, that.table) && Objects.equals(columnName, that.columnName);
     }
 

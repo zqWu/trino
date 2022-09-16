@@ -13,6 +13,10 @@ as
 - where a=b and a=1
 - where a=b and b=1
 
+## 测试点
+- where
+    - equivalent class (size, size_cp)
+
 ## mv定义
 ```sql
 create or replace materialized view iceberg.kernel_db01.mv_part_02 as
@@ -45,6 +49,4 @@ GROUP BY mfgr, brand, type
 
 ```
 
-## 测试点
-- where
-  - equivalent class (size, size_cp)
+
