@@ -40,7 +40,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
 
     // ecList & mvSelectableColumnExpand 是 select处理完毕后得到的产物
     private List<EquivalentClass> ecList;
-    private Map<QualifiedColumn, SelectItem> mvSelectableColumnExpand;
+    private Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
 
     public QuerySpecificationRewriter(QueryRewriter queryRewriter) {
         this.queryRewriter = queryRewriter;
@@ -97,10 +97,6 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             return origSelect;
         }
 
-        if (Objects.equals(origSelect, mvSelect)) {
-            return origSelect;
-        }
-
         List<SelectItem> rewrite = new ArrayList<>();
         for (SelectItem origSelectItem : origSelect.getSelectItems()) {
             if (origSelectItem instanceof AllColumns) {
@@ -120,19 +116,24 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
                 continue;
             }
 
-            SingleColumn mvCol = (SingleColumn) mvDetail.getSelectableColumn().get(qCol);
+            SingleColumn mvCol = (SingleColumn) mvSelectableColumnExtend.get(qCol);
             if (mvCol == null) {
-                // 如果找不到, 使用ec中再找一次
-                // TODO 且需要在 group中
-                EquivalentClass ec = getEquivalentClassByColumn(qCol);
-                if (ec != null) {
-                    mvCol = (SingleColumn) mvDetail.findColumn(ec, groupColumns);
-                }
-                if (mvCol == null) {
-                    notFit("column not present in mv:" + qCol);
-                    return origSelect;
-                }
+                notFit("column not present in mv:" + qCol);
+                return origSelect;
             }
+//            SingleColumn mvCol = (SingleColumn) mvDetail.getSelectableColumn().get(qCol);
+//            if (mvCol == null) {
+//                // 如果找不到, 使用ec中再找一次
+//                // TODO 且需要在 group中
+//                EquivalentClass ec = getEquivalentClassByColumn(qCol);
+//                if (ec != null) {
+//                    mvCol = (SingleColumn) mvDetail.findColumn(ec, groupColumns);
+//                }
+//                if (mvCol == null) {
+//                    notFit("column not present in mv:" + qCol);
+//                    return origSelect;
+//                }
+//            }
 
             Identifier mvColumnLast = getNameLastPart(mvCol);
             Identifier origColumnLast = getNameLastPart(origColumn);
@@ -153,7 +154,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         Expression expression = whereRewriter.process();
         if (isMvFit()) {
             ecList = whereRewriter.getWhereAnalysis().getEcList();
-            mvSelectableColumnExpand = whereRewriter.getMvSelectableColumnExtend();
+            mvSelectableColumnExtend = whereRewriter.getMvSelectableColumnExtend();
         }
 
         if (expression == null) {
@@ -222,7 +223,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return columnRefMap;
     }
 
-    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExpand() {
-        return mvSelectableColumnExpand;
+    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExtend() {
+        return mvSelectableColumnExtend;
     }
 }

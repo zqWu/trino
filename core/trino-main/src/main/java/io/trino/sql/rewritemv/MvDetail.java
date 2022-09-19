@@ -98,23 +98,23 @@ public class MvDetail {
         return selectableColumn;
     }
 
-    public SelectItem findColumn(EquivalentClass ec, Set<QualifiedColumn> mustIn) {
-        Set<QualifiedColumn> columns = ec.getColumns();
-        if (columns == null || columns.size() == 0) {
-            return null;
-        }
-        if (mustIn != null && mustIn.size() > 0) {
-            columns = columns.stream().filter(mustIn::contains).collect(Collectors.toSet());
-        }
-
-        for (QualifiedColumn col : columns) {
-            SelectItem selectItem = selectableColumn.get(col);
-            if (selectItem != null) {
-                return selectItem;
-            }
-        }
-        return null;
-    }
+//    public SelectItem findColumn(EquivalentClass ec, Set<QualifiedColumn> mustIn) {
+//        Set<QualifiedColumn> columns = ec.getColumns();
+//        if (columns == null || columns.size() == 0) {
+//            return null;
+//        }
+//        if (mustIn != null && mustIn.size() > 0) {
+//            columns = columns.stream().filter(mustIn::contains).collect(Collectors.toSet());
+//        }
+//
+//        for (QualifiedColumn col : columns) {
+//            SelectItem selectItem = selectableColumn.get(col);
+//            if (selectItem != null) {
+//                return selectItem;
+//            }
+//        }
+//        return null;
+//    }
 
     public List<Table> getBaseTable() {
         return baseTable;

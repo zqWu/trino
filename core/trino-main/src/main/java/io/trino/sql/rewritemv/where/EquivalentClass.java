@@ -98,7 +98,8 @@ public class EquivalentClass {
         int mergeCount = Integer.MAX_VALUE;
         List<EquivalentClass> notMerged = new ArrayList<>();
         int round = 0;
-        while (mergeCount > 0) {
+        int inSize = in.size();
+        while (mergeCount > 0 || round < inSize) {
             mergeCount = 0;
             round++;
             EquivalentClass head = in.get(0);
@@ -143,6 +144,12 @@ public class EquivalentClass {
         List<EquivalentClass> list = Arrays.asList(e1, e2, e3, e4, e5, e6);
         List<EquivalentClass> last = fullMerge(list);
         System.out.println(last); // [colH,colE,colF,colG, colD,colA,colB,colC]
+
+
+        List<EquivalentClass> list2 = Arrays.asList(e1, e2, e2);
+        List<EquivalentClass> last2 = fullMerge(list2);
+        System.out.println(last2); // [colA,colB, colD,colC]
+
     }
 
 }

@@ -135,7 +135,7 @@ public class GroupByRewriter {
         groupColumns = new HashSet<>();
 
         for (QualifiedColumn col : origGroupColumn) {
-            DereferenceExpression colInMv = RewriteUtils.findColumnInMv(col, specRewriter.getMvSelectableColumnExpand(), mvDetail.getTableNameExpression());
+            DereferenceExpression colInMv = RewriteUtils.findColumnInMv(col, specRewriter.getMvSelectableColumnExtend(), mvDetail.getTableNameExpression());
             if (colInMv == null) {
                 notFit("groupBy rewrite: mv not have field=" + col);
                 return;
