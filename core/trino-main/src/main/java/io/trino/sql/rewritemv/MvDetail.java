@@ -3,7 +3,6 @@ package io.trino.sql.rewritemv;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.ViewInfo;
 import io.trino.sql.analyzer.Analysis;
-import io.trino.sql.rewritemv.where.EquivalentClass;
 import io.trino.sql.rewritemv.where.WhereAnalysis;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
@@ -16,8 +15,6 @@ import io.trino.sql.tree.Table;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class MvDetail {
     private final QualifiedObjectName name; // mv name
@@ -97,24 +94,6 @@ public class MvDetail {
     public Map<QualifiedColumn, SelectItem> getSelectableColumn() {
         return selectableColumn;
     }
-
-//    public SelectItem findColumn(EquivalentClass ec, Set<QualifiedColumn> mustIn) {
-//        Set<QualifiedColumn> columns = ec.getColumns();
-//        if (columns == null || columns.size() == 0) {
-//            return null;
-//        }
-//        if (mustIn != null && mustIn.size() > 0) {
-//            columns = columns.stream().filter(mustIn::contains).collect(Collectors.toSet());
-//        }
-//
-//        for (QualifiedColumn col : columns) {
-//            SelectItem selectItem = selectableColumn.get(col);
-//            if (selectItem != null) {
-//                return selectItem;
-//            }
-//        }
-//        return null;
-//    }
 
     public List<Table> getBaseTable() {
         return baseTable;

@@ -121,19 +121,6 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
                 notFit("column not present in mv:" + qCol);
                 return origSelect;
             }
-//            SingleColumn mvCol = (SingleColumn) mvDetail.getSelectableColumn().get(qCol);
-//            if (mvCol == null) {
-//                // 如果找不到, 使用ec中再找一次
-//                // TODO 且需要在 group中
-//                EquivalentClass ec = getEquivalentClassByColumn(qCol);
-//                if (ec != null) {
-//                    mvCol = (SingleColumn) mvDetail.findColumn(ec, groupColumns);
-//                }
-//                if (mvCol == null) {
-//                    notFit("column not present in mv:" + qCol);
-//                    return origSelect;
-//                }
-//            }
 
             Identifier mvColumnLast = getNameLastPart(mvCol);
             Identifier origColumnLast = getNameLastPart(origColumn);

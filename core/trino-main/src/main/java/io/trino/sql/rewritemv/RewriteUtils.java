@@ -248,20 +248,6 @@ public class RewriteUtils {
 
             // other situation
             else {
-
-                // 3 > 2, '3'>'2'
-//                if (left instanceof Literal && right instanceof Literal) {
-//                    // context.addPredicate(new PredicateLiteral(node, (Literal) left, (Literal) right, op));
-//                    context.addPredicate(new PredictOther(node));
-//                }
-//
-//                // 1+2>2, colA+1=3, 3=colA+1, 30>2+1, 现在不做处理
-//                else if (left instanceof ArithmeticBinaryExpression && right instanceof Literal) {
-//                    context.addPredicate(new PredictOther(node));
-//                } else if (right instanceof ArithmeticBinaryExpression && left instanceof Literal) {
-//                    context.addPredicate(new PredictOther(node));
-//                }
-
                 context.addPredicate(new PredicateOther(node));
             }
 
@@ -294,7 +280,6 @@ public class RewriteUtils {
                 }
             } else {
                 context.notSupport("unsupported: logicExpression OR:" + node);
-                // context.notConjunctionMode();
             }
             return null;
         }

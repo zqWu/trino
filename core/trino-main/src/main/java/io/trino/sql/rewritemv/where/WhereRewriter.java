@@ -495,7 +495,6 @@ public class WhereRewriter {
         @Override
         protected Expression visitExpression(Expression node, Void context) {
             // TODO
-            // List<? extends Node> children = node.getChildren();
             __notSupport(node);
             return null;
         }
