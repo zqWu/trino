@@ -37,8 +37,10 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
     private static final Logger LOG = Logger.get(QuerySpecificationRewriter.class);
     private final QueryRewriter queryRewriter;
     private final Map<Expression, QualifiedColumn> columnRefMap;
+
+    // ecList & mvSelectableColumnExpand 是 select处理完毕后得到的产物
     private List<EquivalentClass> ecList;
-    private List<QualifiedColumn> groupColumn;
+    private Map<QualifiedColumn, SelectItem> mvSelectableColumnExpand;
 
     public QuerySpecificationRewriter(QueryRewriter queryRewriter) {
         this.queryRewriter = queryRewriter;
@@ -58,7 +60,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         Relation relation = (Relation) process(node.getFrom().get(), mvDetail);
 
         // where
-        Optional<Expression> where = processWhere(node.getWhere(), mvDetail);
+        Optional<Expression> where = processWhere(mvDetail);
 
         // group having
         GroupByRewriter groupByRewriter = new GroupByRewriter(this, mvDetail);
@@ -146,9 +148,13 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return s;
     }
 
-    private Optional<Expression> processWhere(Optional<Expression> optWhere, MvDetail mvDetail) {
+    private Optional<Expression> processWhere(MvDetail mvDetail) {
         WhereRewriter whereRewriter = new WhereRewriter(this, mvDetail);
         Expression expression = whereRewriter.process();
+        if (isMvFit()) {
+            ecList = whereRewriter.getWhereAnalysis().getEcList();
+            mvSelectableColumnExpand = whereRewriter.getMvSelectableColumnExtend();
+        }
 
         if (expression == null) {
             return Optional.empty();
@@ -208,10 +214,6 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return ecList;
     }
 
-    public void setEcList(List<EquivalentClass> ecList) {
-        this.ecList = ecList;
-    }
-
     public QueryRewriter getQueryRewriter() {
         return queryRewriter;
     }
@@ -220,4 +222,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return columnRefMap;
     }
 
+    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExpand() {
+        return mvSelectableColumnExpand;
+    }
 }

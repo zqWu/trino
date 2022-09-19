@@ -20,10 +20,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class MvDetail {
-    /**
-     * the name of this mv
-     */
-    private final QualifiedObjectName name;
+    private final QualifiedObjectName name; // mv name
     private final Statement statement;
     private final ViewInfo viewInfo;
     private final Analysis analysis;
@@ -35,33 +32,32 @@ public class MvDetail {
     private final DereferenceExpression tableNameExpression; // mv的基本表达式, 因为大量用到
     private final WhereAnalysis whereAnalysis;
 
-    public MvDetail(QualifiedObjectName name, Statement statement, ViewInfo viewInfo, Analysis analysis) {
-        this.name = name;
+    public MvDetail(QualifiedObjectName mvName, Statement statement, ViewInfo viewInfo, Analysis analysis) {
+        this.name = mvName;
         this.statement = statement;
         this.viewInfo = viewInfo;
         this.analysis = analysis;
 
 
+        // ======== 一些简单的变量提取出来, 便于使用
         this.query = (Query) analysis.getStatement();
         this.querySpecification = (QuerySpecification) this.query.getQueryBody();
-        columnRefMap = RewriteUtils.extractColumnReferenceMap(analysis);
-        selectableColumn = RewriteUtils.extractSelectSingleField(querySpecification, columnRefMap);
+        baseTable = RewriteUtils.extractBaseTable(querySpecification.getFrom().get());
+        DereferenceExpression catalogAndSchema = new DereferenceExpression(
+                new Identifier(mvName.getCatalogName()), new Identifier(mvName.getSchemaName()));
+        tableNameExpression = new DereferenceExpression(catalogAndSchema, new Identifier(mvName.getObjectName()));
 
+        // ======== 提取 column reference map Map<Expression, QualifiedColumn>
+        columnRefMap = RewriteUtils.extractColumnReferenceMap(analysis);
+
+        // ======== 分析 where
         if (querySpecification.getWhere().isPresent()) {
             this.whereAnalysis = RewriteUtils.analyzeWhere(querySpecification.getWhere().get(), columnRefMap);
         } else {
             this.whereAnalysis = WhereAnalysis.EMPTY_WHERE;
         }
-
-        //
-        baseTable = RewriteUtils.extractBaseTable(querySpecification.getFrom().get());
-
-        //
-        Identifier catalog = new Identifier(name.getCatalogName());
-        Identifier schema = new Identifier(name.getSchemaName());
-        Identifier database = new Identifier(name.getObjectName());
-        DereferenceExpression catalogSchema = new DereferenceExpression(catalog, schema);
-        tableNameExpression = new DereferenceExpression(catalogSchema, database);
+        // ======== 提取 selectableColumn, Map<QualifiedColumn, SelectItem>
+        selectableColumn = RewriteUtils.extractSelectSingleField(querySpecification, columnRefMap, whereAnalysis);
     }
 
     // ======== get

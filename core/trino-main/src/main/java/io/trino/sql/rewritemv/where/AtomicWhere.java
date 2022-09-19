@@ -7,8 +7,8 @@ import io.trino.sql.tree.Expression;
  */
 public class AtomicWhere {
     public enum WhereType {
-        COLUMN_EQUAL,           // predict equal, colA = colB
-        COLUMN_RANGE,           // predict range, colA > 3
+        COLUMN_EQUAL,           // predicate equal, colA = colB
+        COLUMN_RANGE,           // predicate range, colA > 3
         LITERAL_EQUAL,          // 3 = 2
         OTHER                   // other, a like '%x', colA is not null
     }

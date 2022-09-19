@@ -14,6 +14,7 @@ import java.util.Set;
 import static java.util.Objects.requireNonNull;
 
 /**
+ * 简称 ec
  * colA = colB
  * colA = colC
  * ===>

@@ -43,7 +43,7 @@ GROUP BY mfgr, brand, type, s2
 -- where条件的改写
 -- s2 ===> s1等等
 
--- sql2, 在sql1的基础上增加了 s0>10
+-- sql2, 在sql1的基础上增加了 and s0>10 and s0<40
 SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
 from iceberg.kernel_db01.part02
 where 2=2
@@ -51,20 +51,52 @@ where 2=2
   and 'Manufacturer#1'=mfgr
   and brand='Brand#14'
   and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
-  and s0>10
+  and s0>=10 and s0<40
 GROUP BY mfgr, brand, type, s2
 
-
-
--- sql2
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, size
+-- sql3, and s0>=10 and s0<40 ===> and s0 between 10 and 40
+SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
 from iceberg.kernel_db01.part02
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
-  and (brand='Brand#14' and (size=7 and 1+1=2))
-  and and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7
-GROUP BY mfgr, brand, type,size
+  and brand='Brand#14'
+  and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
+  and s0 between 10 and 40
+GROUP BY mfgr, brand, type, s2
+
+-- sql4, 在 sql3 的基础上增加了 
+-- and type like 'LARGE%'
+-- and brand like 'Brand%'
+-- and brand not in ('haha')
+SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
+from iceberg.kernel_db01.part02
+where 2=2
+  and mfgr=mfgr
+  and 'Manufacturer#1'=mfgr
+  and brand='Brand#14'
+  and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
+  and s0 between 10 and 40
+  and type like 'LARGE%'
+  and brand like 'Brand%'
+  and brand not in ('haha')
+GROUP BY mfgr, brand, type, s2
+
+
+-- sql5, 在 sql4 的基础上  and (brand='Brand#14' and (s2=18 and 1+1=2))
+SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
+from iceberg.kernel_db01.part02
+where 2=2
+  and mfgr=mfgr
+  and 'Manufacturer#1'=mfgr
+  and (brand='Brand#14' and (s2=18 and 1+1=2) and s0+1>=10+1)
+  and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
+  and s0 between 10 and 40
+  and type like 'LARGE%'
+  and brand like 'Brand%'
+  and brand not in ('haha')
+  and s0+1 in (1,2,19)
+GROUP BY mfgr, brand, type, s2
 ```
 
 ## 测试点

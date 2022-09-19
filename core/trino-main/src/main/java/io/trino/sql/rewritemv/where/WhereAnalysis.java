@@ -9,9 +9,9 @@ import java.util.Optional;
 public class WhereAnalysis {
     private boolean support = true;     // false when not support
     private String reason;              // why not support
-    private final List<PredictEqual> peList = new ArrayList<>();
-    private final List<PredictRange> prList = new ArrayList<>();
-    private final List<PredictOther> puList = new ArrayList<>();
+    private final List<PredicateEqual> equalList = new ArrayList<>();
+    private final List<PredicateRange> rangeList = new ArrayList<>();
+    private final List<PredicateOther> otherList = new ArrayList<>();
     private List<EquivalentClass> ecList;
 
     // 不要对 EMPTY_WHERE 进行任何写操作
@@ -27,19 +27,19 @@ public class WhereAnalysis {
 
     public void build() {
         // 整理 equivalent class
-        List<EquivalentClass> ecb = new ArrayList<>(peList.size());
-        for (PredictEqual pe : peList) {
+        List<EquivalentClass> ecb = new ArrayList<>(equalList.size());
+        for (PredicateEqual pe : equalList) {
             if (!pe.isAlwaysTrue()) {
                 ecb.add(new EquivalentClass(pe.getLeft(), pe.getRight()));
             }
         }
-        for (PredictRange pr : prList) {
+        for (PredicateRange pr : rangeList) {
             ecb.add(new EquivalentClass(pr.getLeft()));
         }
         ecList = EquivalentClass.fullMerge(ecb);
 
         // 处理 range: 每个range加上关联的
-        for (PredictRange pr : prList) {
+        for (PredicateRange pr : rangeList) {
             QualifiedColumn col = pr.getLeft();
             EquivalentClass targetEc = ecList.stream().filter(ec -> ec.contain(col)).findAny().get();
             pr.setEc(targetEc);
@@ -47,37 +47,37 @@ public class WhereAnalysis {
 
     }
 
-    public void addPredict(AtomicWhere p) {
-        if (p instanceof PredictEqual) {
-            peList.add((PredictEqual) p);
-        } else if (p instanceof PredictRange) {
-            prList.add((PredictRange) p);
+    public void addPredicate(AtomicWhere p) {
+        if (p instanceof PredicateEqual) {
+            equalList.add((PredicateEqual) p);
+        } else if (p instanceof PredicateRange) {
+            rangeList.add((PredicateRange) p);
         }
 
-        // others put in predictOther
+        // others put in PredicateOther
         else {
-            puList.add((PredictOther) p);
+            otherList.add((PredicateOther) p);
         }
     }
 
     /**
      * 是否包含有效的 where 条件 == 有些条件不是always true
      */
-    public boolean hasEffectivePredict() {
+    public boolean hasEffectivePredicate() {
         if (this == EMPTY_WHERE) {
             return false;
         }
 
-        List<AtomicWhere> allPredict = new ArrayList<>();
-        allPredict.addAll(peList);
-        allPredict.addAll(prList);
-        allPredict.addAll(puList);
+        List<AtomicWhere> allPredicate = new ArrayList<>();
+        allPredicate.addAll(equalList);
+        allPredicate.addAll(rangeList);
+        allPredicate.addAll(otherList);
 
-        if (allPredict.size() == 0) {
+        if (allPredicate.size() == 0) {
             return false;
         }
 
-        Optional<?> any = allPredict.stream().filter(AtomicWhere::isAlwaysTrue).findAny();
+        Optional<?> any = allPredicate.stream().filter(AtomicWhere::isAlwaysTrue).findAny();
         return any.isPresent();
     }
 
@@ -87,16 +87,16 @@ public class WhereAnalysis {
         return ecList;
     }
 
-    public List<PredictEqual> getPeList() {
-        return peList;
+    public List<PredicateEqual> getEqualList() {
+        return equalList;
     }
 
-    public List<PredictRange> getPrList() {
-        return prList;
+    public List<PredicateRange> getRangeList() {
+        return rangeList;
     }
 
-    public List<PredictOther> getPuList() {
-        return puList;
+    public List<PredicateOther> getOtherList() {
+        return otherList;
     }
 
     public String getReason() {

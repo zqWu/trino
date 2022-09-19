@@ -31,20 +31,20 @@ import static io.trino.util.DateTimeUtils.parseYearMonthInterval;
  * expression: colA >,>=,=,<=,< constant
  * eg. colA > 3, colA <= 7
  */
-public class PredictRange extends AtomicWhere {
+public class PredicateRange extends AtomicWhere {
 
-    public static class PredictRangeBound {
+    public static class PredicateRangeBound {
         private final ComparisonExpression.Operator op;
         private final Literal value;
 
-        public PredictRangeBound(ComparisonExpression.Operator op, Literal value) {
+        public PredicateRangeBound(ComparisonExpression.Operator op, Literal value) {
             this.op = op;
             this.value = value;
         }
 
-        public static final PredictRangeBound UNBOUND = new PredictRangeBound(EQUAL, null);
+        public static final PredicateRangeBound UNBOUND = new PredicateRangeBound(EQUAL, null);
 
-        public static PredictRangeBound mergeLower(PredictRangeBound a, PredictRangeBound b) {
+        public static PredicateRangeBound mergeLower(PredicateRangeBound a, PredicateRangeBound b) {
             if (a == UNBOUND || b == UNBOUND) {
                 return (a == UNBOUND) ? b : a;
             }
@@ -52,7 +52,7 @@ public class PredictRange extends AtomicWhere {
             // merge lower时, value 取大 . value相同时, 取 > 而不是 >=
             // a > 5 and a >= 10 ===> a>=10
             // a > 3 and a >=3   ===> a>3
-            int comp = PredictRange.compareLiteralValue(a.getValue(), b.getValue());
+            int comp = PredicateRange.compareLiteralValue(a.getValue(), b.getValue());
             if (comp < 0) {
                 return b;
             } else if (comp > 0) {
@@ -66,7 +66,7 @@ public class PredictRange extends AtomicWhere {
             }
         }
 
-        public static PredictRangeBound mergeUpper(PredictRangeBound a, PredictRangeBound b) {
+        public static PredicateRangeBound mergeUpper(PredicateRangeBound a, PredicateRangeBound b) {
             if (a == UNBOUND || b == UNBOUND) {
                 return (a == UNBOUND) ? b : a;
             }
@@ -74,7 +74,7 @@ public class PredictRange extends AtomicWhere {
             // merge lower时, value 取小 . value相同时, 取 < 而不是 <=
             // a < 5 and a <= 10 ===> a<5
             // a < 3 and a <=3   ===> a>3
-            int comp = PredictRange.compareLiteralValue(a.getValue(), b.getValue());
+            int comp = PredicateRange.compareLiteralValue(a.getValue(), b.getValue());
             if (comp < 0) {
                 return a;
             } else if (comp > 0) {
@@ -88,20 +88,20 @@ public class PredictRange extends AtomicWhere {
             }
         }
 
-        public static PredictRangeBound mergeEqual(PredictRangeBound a, PredictRangeBound b) {
+        public static PredicateRangeBound mergeEqual(PredicateRangeBound a, PredicateRangeBound b) {
             if (a == UNBOUND || b == UNBOUND) {
                 return (a == UNBOUND) ? b : a;
             }
 
             // 2个都不相同的情况下, 因为限定了是 Literal, 只能相等, 否则就冲突 a=1 and a=2
-            int comp = PredictRange.compareLiteralValue(a.getValue(), b.getValue());
+            int comp = PredicateRange.compareLiteralValue(a.getValue(), b.getValue());
             if (comp == 0) {
                 return a;
             }
             throw new RuntimeException("2个 字面量 无法相等");
         }
 
-        public boolean coverOther(PredictRangeBound o) {
+        public boolean coverOther(PredicateRangeBound o) {
             if (this == UNBOUND) {
                 return true;
             }
@@ -198,8 +198,8 @@ public class PredictRange extends AtomicWhere {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof PredictRangeBound)) return false;
-            PredictRangeBound that = (PredictRangeBound) o;
+            if (!(o instanceof PredicateRangeBound)) return false;
+            PredicateRangeBound that = (PredicateRangeBound) o;
             return op == that.op && Objects.equals(value, that.value);
         }
 
@@ -211,11 +211,11 @@ public class PredictRange extends AtomicWhere {
 
     private final QualifiedColumn left;
     private EquivalentClass ec;
-    private PredictRangeBound lower;
-    private PredictRangeBound equal;
-    private PredictRangeBound upper;
+    private PredicateRangeBound lower;
+    private PredicateRangeBound equal;
+    private PredicateRangeBound upper;
 
-    public PredictRange(Expression expr, QualifiedColumn left, Literal right, ComparisonExpression.Operator op) {
+    public PredicateRange(Expression expr, QualifiedColumn left, Literal right, ComparisonExpression.Operator op) {
         super(expr, WhereType.COLUMN_RANGE);
         if (!validOperator(op)) {
             throw new RuntimeException("not support operator:" + op);
@@ -226,44 +226,50 @@ public class PredictRange extends AtomicWhere {
 
         this.left = left;
         if (EQUAL == op) {
-            this.equal = new PredictRangeBound(EQUAL, right);
-            this.lower = PredictRangeBound.UNBOUND;
-            this.upper = PredictRangeBound.UNBOUND;
+            this.equal = new PredicateRangeBound(EQUAL, right);
+            this.lower = PredicateRangeBound.UNBOUND;
+            this.upper = PredicateRangeBound.UNBOUND;
         } else if (GREATER_THAN == op
                 || GREATER_THAN_OR_EQUAL == op) {
-            this.lower = new PredictRangeBound(op, right);
-            this.equal = PredictRangeBound.UNBOUND;
-            this.upper = PredictRangeBound.UNBOUND;
+            this.lower = new PredicateRangeBound(op, right);
+            this.equal = PredicateRangeBound.UNBOUND;
+            this.upper = PredicateRangeBound.UNBOUND;
         } else if (ComparisonExpression.Operator.LESS_THAN == op
                 || ComparisonExpression.Operator.LESS_THAN_OR_EQUAL == op) {
-            this.upper = new PredictRangeBound(op, right);
-            this.equal = PredictRangeBound.UNBOUND;
-            this.lower = PredictRangeBound.UNBOUND;
+            this.upper = new PredicateRangeBound(op, right);
+            this.equal = PredicateRangeBound.UNBOUND;
+            this.lower = PredicateRangeBound.UNBOUND;
         }
     }
 
-    private PredictRange(QualifiedColumn left, EquivalentClass ec) {
+    public static PredicateRange fromRange(Expression expr, QualifiedColumn left, Literal min, Literal max) {
+        PredicateRange range = new PredicateRange(expr, left, min, GREATER_THAN_OR_EQUAL);
+        range.upper = new PredicateRangeBound(LESS_THAN_OR_EQUAL, max);
+        return range;
+    }
+
+    private PredicateRange(QualifiedColumn left, EquivalentClass ec) {
         super(null, WhereType.COLUMN_RANGE);
         this.left = left;
         this.ec = ec;
     }
 
-    public static PredictRange unbound(QualifiedColumn left, EquivalentClass ec) {
-        PredictRange pr = new PredictRange(left, ec);
-        pr.lower = PredictRangeBound.UNBOUND;
-        pr.equal = PredictRangeBound.UNBOUND;
-        pr.upper = PredictRangeBound.UNBOUND;
+    public static PredicateRange unbound(QualifiedColumn left, EquivalentClass ec) {
+        PredicateRange pr = new PredicateRange(left, ec);
+        pr.lower = PredicateRangeBound.UNBOUND;
+        pr.equal = PredicateRangeBound.UNBOUND;
+        pr.upper = PredicateRangeBound.UNBOUND;
         return pr;
     }
 
     /**
      * range的交集
      */
-    public PredictRange intersection(PredictRange o) {
-        PredictRange pr = new PredictRange(this.left, this.ec);
-        PredictRangeBound mergedEqual = PredictRangeBound.mergeLower(this.equal, o.equal);
-        PredictRangeBound mergedLower = PredictRangeBound.mergeLower(this.lower, o.lower);
-        PredictRangeBound mergedUpper = PredictRangeBound.mergeLower(this.upper, o.upper);
+    public PredicateRange intersection(PredicateRange o) {
+        PredicateRange pr = new PredicateRange(this.left, this.ec);
+        PredicateRangeBound mergedEqual = PredicateRangeBound.mergeLower(this.equal, o.equal);
+        PredicateRangeBound mergedLower = PredicateRangeBound.mergeLower(this.lower, o.lower);
+        PredicateRangeBound mergedUpper = PredicateRangeBound.mergeLower(this.upper, o.upper);
 
         pr.lower = mergedLower;
         pr.equal = mergedEqual;
@@ -351,14 +357,14 @@ public class PredictRange extends AtomicWhere {
     }
 
 
-    public boolean coverOther(PredictRange o) {
+    public boolean coverOther(PredicateRange o) {
         if (!Objects.equals(left, o.left)) {
             return false;
         }
         return coverOtherValue(o);
     }
 
-    public boolean coverOtherValue(PredictRange o) {
+    public boolean coverOtherValue(PredicateRange o) {
         // lower cover check
         boolean cover = lower.coverOther(o.lower);
         if (cover) {
@@ -371,24 +377,24 @@ public class PredictRange extends AtomicWhere {
     }
 
     // large比self的范围大
-    public PredictRange baseOn(PredictRange large) {
-        PredictRange onTop = unbound(left, ec);
+    public PredicateRange baseOn(PredicateRange large) {
+        PredicateRange onTop = unbound(left, ec);
 
         // equal
-        if (equal != PredictRangeBound.UNBOUND) { // 只需要返回 equal中的条件 即可
-            if (large.getEqual() == PredictRangeBound.UNBOUND) {
+        if (equal != PredicateRangeBound.UNBOUND) { // 只需要返回 equal中的条件 即可
+            if (large.getEqual() == PredicateRangeBound.UNBOUND) {
                 onTop.equal = this.equal;
             }
         } else {
             // lower
-            if (this.lower != PredictRangeBound.UNBOUND) {
+            if (this.lower != PredicateRangeBound.UNBOUND) {
                 if (!Objects.equals(this.lower, large.lower)) {
                     onTop.lower = this.lower;
                 }
             }
 
             // upper
-            if (this.upper != PredictRangeBound.UNBOUND) {
+            if (this.upper != PredicateRangeBound.UNBOUND) {
                 if (!Objects.equals(this.upper, large.upper)) {
                     onTop.upper = this.upper;
                 }
@@ -422,15 +428,15 @@ public class PredictRange extends AtomicWhere {
         return left;
     }
 
-    public PredictRangeBound getLower() {
+    public PredicateRangeBound getLower() {
         return lower;
     }
 
-    public PredictRangeBound getEqual() {
+    public PredicateRangeBound getEqual() {
         return equal;
     }
 
-    public PredictRangeBound getUpper() {
+    public PredicateRangeBound getUpper() {
         return upper;
     }
 
@@ -443,13 +449,13 @@ public class PredictRange extends AtomicWhere {
         LongLiteral l2 = new LongLiteral("3");
         LongLiteral l3 = new LongLiteral("8");
 
-        PredictRange pr1 = new PredictRange(null, colA, l1, EQUAL);                 // colA = 5
-        PredictRange pr2 = new PredictRange(null, colA, l2, GREATER_THAN);          // colA > 3
-        PredictRange pr5 = new PredictRange(null, colA, l2, GREATER_THAN_OR_EQUAL); // colA >= 3
-        PredictRange pr3 = new PredictRange(null, colA, l3, LESS_THAN_OR_EQUAL);    // colA <=8
-        PredictRange pr4 = new PredictRange(null, colA, l3, LESS_THAN);             // colA <8
-        PredictRange pr1pr2 = pr1.intersection(pr2);                                     // >3, =5,
-        PredictRange pr2pr3 = pr3.intersection(pr2);                                     // >3, <=8
+        PredicateRange pr1 = new PredicateRange(null, colA, l1, EQUAL);                 // colA = 5
+        PredicateRange pr2 = new PredicateRange(null, colA, l2, GREATER_THAN);          // colA > 3
+        PredicateRange pr5 = new PredicateRange(null, colA, l2, GREATER_THAN_OR_EQUAL); // colA >= 3
+        PredicateRange pr3 = new PredicateRange(null, colA, l3, LESS_THAN_OR_EQUAL);    // colA <=8
+        PredicateRange pr4 = new PredicateRange(null, colA, l3, LESS_THAN);             // colA <8
+        PredicateRange pr1pr2 = pr1.intersection(pr2);                                     // >3, =5,
+        PredicateRange pr2pr3 = pr3.intersection(pr2);                                     // >3, <=8
 
         System.out.println("pr2.coverOther(pr1) = " + pr2.coverOther(pr1));
         System.out.println("pr3.coverOther(pr1) = " + pr3.coverOther(pr1));
@@ -457,12 +463,12 @@ public class PredictRange extends AtomicWhere {
         System.out.println("pr5.coverOther(pr2) = " + pr5.coverOther(pr2));
 
         System.out.println("pr1pr2= " + pr1pr2);
-        PredictRange pr1x = pr1pr2.baseOn(pr2);
+        PredicateRange pr1x = pr1pr2.baseOn(pr2);
         System.out.println("pr1x= " + pr1x);
 
 
         System.out.println("pr2pr3= " + pr2pr3);
-        PredictRange pr3x = pr2pr3.baseOn(pr2);
+        PredicateRange pr3x = pr2pr3.baseOn(pr2);
         System.out.println("pr3x= " + pr3x);
 
     }
