@@ -11,6 +11,7 @@ where 2=2
   and 'Manufacturer#1'=mfgr
   and brand='Brand#14'
   and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
+  and s0>10
 GROUP BY mfgr, brand, type, s2
 ;
 "

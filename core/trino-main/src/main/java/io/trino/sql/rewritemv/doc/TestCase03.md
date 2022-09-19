@@ -40,16 +40,19 @@ where 2=2
   and brand='Brand#14'
   and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
 GROUP BY mfgr, brand, type, s2
+-- where条件的改写
+-- s2 ===> s1等等
 
-
--- sql1 手动用mv 改写
-SELECT mfgr2 mfgr, brand, type2 type, s1 as s2
-from iceberg.kernel_db01.mv_part_03
-where 
-    'Manufacturer#1'=mfgr2
+-- sql2, 在sql1的基础上增加了 s0>10
+SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
+from iceberg.kernel_db01.part02
+where 2=2
+  and mfgr=mfgr
+  and 'Manufacturer#1'=mfgr
   and brand='Brand#14'
-  and s1=s3 and s1=s5 and s1=s0
-GROUP BY mfgr2, brand, type2, s1;
+  and s1=s2 and s1=s3 and s1=s4 and s1=s5 and s1=s6 and s1=s7 and s1=s0
+  and s0>10
+GROUP BY mfgr, brand, type, s2
 
 
 
