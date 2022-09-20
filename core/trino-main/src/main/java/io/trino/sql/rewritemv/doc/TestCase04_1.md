@@ -20,7 +20,6 @@ where 1=1
   and s0=s1 
   and s0=s2
 GROUP BY mfgr, brand, s0
-having count(*) >= 4
 ;
 
 refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part_04;
@@ -30,15 +29,14 @@ select * from iceberg.kernel_db01.mv_part_04;
 
 ## 测试sql, 预期能够替换
 ```sql
--- sql1
+-- sql1, 原mv的基础上 多了 having语句
 SELECT mfgr mfgr2, brand, s0, count(*) as _cnt
 from iceberg.kernel_db01.part04
     where 1=1
-  and s0=s1 and s0=s2
+  and s0=s1 
+  and s0=s2
 GROUP BY mfgr, brand, s0
+having count(*) > 4
+;
 
 ```
-
-## 测试点
-- where
-  - equivalent class (size, size_cp)
