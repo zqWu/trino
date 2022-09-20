@@ -1,3 +1,6 @@
+# 解决 groupBy having
+
+
 # base_table
 ```sql
 DROP TABLE if exists iceberg.kernel_db01.part04;
@@ -7,10 +10,6 @@ as
     select partkey, mfgr, brand, type, size s0, size s1, size s2, size s3, size s4, size s5, size s6, size s7
     from tpch.tiny.part;
 ```
-
-
-# 解决 groupBy having
-
 
 ## mv定义
 ```sql

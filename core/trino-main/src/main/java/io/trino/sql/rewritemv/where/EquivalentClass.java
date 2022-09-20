@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Vector;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -62,6 +64,17 @@ public class EquivalentClass {
         return ec;
     }
 
+    public EquivalentClass merge(List<EquivalentClass> l) {
+        Set<QualifiedColumn> s1 = new HashSet<>();
+        s1.addAll(this.columns);
+        for (EquivalentClass ec : l) {
+            s1.addAll(ec.columns);
+        }
+        EquivalentClass ec = new EquivalentClass();
+        ec.add(s1);
+        return ec;
+    }
+
     public boolean contain(QualifiedColumn q) {
         return columns.contains(q);
     }
@@ -79,10 +92,12 @@ public class EquivalentClass {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
+        sb.append('{');
         for (QualifiedColumn q : columns) {
             sb.append(q.getColumnName()).append(',');
         }
         sb.deleteCharAt(sb.length() - 1);
+        sb.append('}');
         return sb.toString();
     }
 
@@ -90,35 +105,64 @@ public class EquivalentClass {
         return columns;
     }
 
+    /**
+     * input = [ (a,b), (c,d), (e,f), (a,c), (d,e), (m,n)]
+     * 步骤如下:
+     * 1. 取input[0] 作为 head, 这里 head=(a,b)
+     * 2. 遍历剩下的 input
+     * 2.1 如果发现一个可以与head进行合并的元素, 如(a,c), 则, 更新 head=(a,b,c), 删除input中的(a,c)
+     * 重新从1执行, head=(a,b,c)
+     * 2.2 如果 遍历整个 input 都没有与 head可合并的元素
+     * 保存当前head, 另取 head=input[0]
+     * 3. 当 input为空时, 合并结束
+     * eg.
+     * input0 = [ (a,b), (c,d), (e,f), (a,c), (d,e), (m,n), (p,q) ]
+     * head = (a,b), input = [(c,d), (e,f), (a,c), (d,e), (m,n), (p,q)], save=[]
+     * 遍历, (a,c) 与 head 交集a, 可合并
+     * head = (a,b,c), input = [(c,d), (e,f), (d,e), (m,n), (p,q)], save=[]
+     * 遍历, (c,d)与 head 交集c, 可合并
+     * head = (a,b,c,d), input = [(e,f), (d,e), (m,n), (p,q)], save=[]
+     * head = (a,b,c,d,e), input = [(e,f), (m,n)], save=[]
+     * head = (a,b,c,d,e,f), input = [(m,n), (p,q)], save=[]
+     * head = (m,n), input = [ (p,q)], save=[(a,b,c,d,e,f)]
+     * head = (p,q) input = [ ], save=[(a,b,c,d,e,f), (m,n)]
+     * head = input = [ ], save=[(a,b,c,d,e,f), (m,n), (p,q) ]
+     * 结束, save就是返回的结果
+     *
+     * @param in
+     * @return
+     */
     public static List<EquivalentClass> fullMerge(List<EquivalentClass> in) {
-        if (Collections.isEmpty(in) || in.size() < 1) {
+        if (Collections.isEmpty(in) || in.size() <= 1) {
             return in;
         }
 
-        int mergeCount = Integer.MAX_VALUE;
-        List<EquivalentClass> notMerged = new ArrayList<>();
-        int round = 0;
-        int inSize = in.size();
-        while (mergeCount > 0 || round < inSize) {
-            mergeCount = 0;
-            round++;
-            EquivalentClass head = in.get(0);
-            for (int i = 1; i < in.size(); i++) {
-                EquivalentClass ec = in.get(i);
+        List<EquivalentClass> save = new ArrayList<>(in.size());
+        Vector<EquivalentClass> vector = new Vector<>(in);
+        EquivalentClass head = vector.remove(0);
+
+        while (vector.size() > 0) {
+            List<EquivalentClass> canMergeHead = new ArrayList<>();
+            for (EquivalentClass ec : vector) {
                 if (head.hasCommonColumn(ec)) {
-                    head = head.merge(ec);
-                    mergeCount++;
-                } else {
-                    notMerged.add(ec);
+                    canMergeHead.add(ec);
                 }
             }
-            notMerged.add(head);
-            in = notMerged;
-            notMerged = new ArrayList<>();
-            LOG.debug(String.format("round %s, in.size()=%s", round, in.size()));
+
+            if (canMergeHead.size() > 0) {
+                vector.removeAll(canMergeHead);
+                head = head.merge(canMergeHead);
+            } else {
+                save.add(head);
+                head = vector.remove(0);
+            }
+
+            if (vector.size() == 0) {
+                save.add(head);
+            }
         }
 
-        return in;
+        return save;
     }
 
     public static void main(String[] args) {
@@ -141,15 +185,37 @@ public class EquivalentClass {
         EquivalentClass e5 = new EquivalentClass(colG, colH); // G=H
         EquivalentClass e6 = new EquivalentClass(colE, colG); // E=G
 
-        List<EquivalentClass> list = Arrays.asList(e1, e2, e3, e4, e5, e6);
-        List<EquivalentClass> last = fullMerge(list);
-        System.out.println(last); // [colH,colE,colF,colG, colD,colA,colB,colC]
+        List<EquivalentClass> list;
+        List<EquivalentClass> merged;
 
+        list = Arrays.asList(e1);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colA,colB}]
 
-        List<EquivalentClass> list2 = Arrays.asList(e1, e2, e2);
-        List<EquivalentClass> last2 = fullMerge(list2);
-        System.out.println(last2); // [colA,colB, colD,colC]
+        list = Arrays.asList(e1, e2);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colA,colB}, {colD,colC}]
 
+        list = Arrays.asList(e1, e1);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colA,colB}]
+
+        list = Arrays.asList(e1, e2, e2);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colA,colB}, {colD,colC}]
+
+        list = Arrays.asList(e1, e2, e3);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colD,colA,colB,colC}]
+
+        list = Arrays.asList(e1, e2, e3, e1, e2, e3);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colD,colA,colB,colC}]
+
+        list = Arrays.asList(e1, e2, e3, e4, e5, e6);
+        merged = fullMerge(list);
+        System.out.println(merged); // [{colD,colA,colB,colC}, {colH,colE,colF,colG}]
     }
+
 
 }
