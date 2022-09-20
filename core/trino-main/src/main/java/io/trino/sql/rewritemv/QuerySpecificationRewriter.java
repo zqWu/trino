@@ -58,32 +58,40 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
 
         // from
         Relation relation = (Relation) process(node.getFrom().get(), mvDetail);
+        if (!isMvFit()) {
+            return node;
+        }
 
         // where
         Optional<Expression> where = processWhere(mvDetail);
+        if (!isMvFit()) {
+            return node;
+        }
 
         // group having
         GroupByRewriter groupByRewriter = new GroupByRewriter(this, mvDetail);
         groupByRewriter.process();
+        if (!isMvFit()) {
+            return node;
+        }
 
 
         // select
         Select select = processSelect(node, mvDetail, groupByRewriter.getGroupColumns());
-
-        QuerySpecification spec = node;
-        if (isMvFit()) {
-            // TODO
-            spec = new QuerySpecification(
-                    select,
-                    Optional.of(relation),
-                    where, // TODO 需要合并 groupByWriter中的 where
-                    groupByRewriter.getResultGroupBy(),
-                    groupByRewriter.getHaving(),
-                    node.getWindows(),
-                    node.getOrderBy(),
-                    node.getOffset(),
-                    node.getLimit());
+        if (!isMvFit()) {
+            return node;
         }
+
+        QuerySpecification spec = new QuerySpecification(
+                select,
+                Optional.of(relation),
+                where, // TODO 需要合并 groupByWriter中的 where
+                groupByRewriter.getResultGroupBy(),
+                groupByRewriter.getHaving(),
+                node.getWindows(),
+                node.getOrderBy(),
+                node.getOffset(),
+                node.getLimit());
         return spec;
     }
 
@@ -171,7 +179,8 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             Table mvTable = new Table(name);
             return mvTable;
         }
-        notFit("not match: table not match");
+        notFit(String.format("not match : table, require=%s, provided %s by %s",
+                node, mvRelation, mvDetail.getName()));
         return node;
     }
 

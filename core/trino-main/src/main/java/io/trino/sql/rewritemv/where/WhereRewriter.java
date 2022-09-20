@@ -98,11 +98,17 @@ public class WhereRewriter {
      */
     private Expression compareAndRewriteWhere() {
         List<AtomicWhere> compensation = processPredicateEqual();
+        if (!isMvFit()) {
+            return null;
+        }
 
         // ec处理完毕后, 就可以更新在mv中的 selectable字段
         mvSelectableColumnExtend = RewriteUtils.extendSelectableColumnByEc(mvDetail.getSelectableColumn(), whereAnalysis.getEcList());
 
         List<AtomicWhere> list2 = processPredicateRange();
+        if (!isMvFit()) {
+            return null;
+        }
         compensation.addAll(list2);
 
         // 整理 compensation
@@ -147,7 +153,7 @@ public class WhereRewriter {
             Optional<EquivalentClass> origEcOpt = origEcList.stream().filter(x -> x.contain(oneColumnInEc)).findAny();
             if (origEcOpt.isEmpty()) {
                 notFit("where in mv[%s] not exists in query");
-                return null;
+                return compensation;
             }
             EquivalentClass origEc = origEcOpt.get();
 
@@ -359,6 +365,9 @@ public class WhereRewriter {
     }
 
 
+    /**
+     * 改写 PredicateOther的 visitor类
+     */
     private class ColumnRewriteVisitor extends AstVisitor<Expression, Void> {
 
         private DereferenceExpression getColumnReference(QualifiedColumn col) {
