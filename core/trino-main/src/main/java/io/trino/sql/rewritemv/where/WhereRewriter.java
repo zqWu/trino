@@ -78,13 +78,13 @@ public class WhereRewriter {
         }
 
         if (!mvWhereAnalysis.isSupport()) {
-            notFit("where(mv) not support, reason=" + mvWhereAnalysis.getReason());
+            notFit("where: mv not support, reason=" + mvWhereAnalysis.getReason());
             return null;
         }
 
         whereAnalysis = RewriteUtils.analyzeWhere(optWhere.get(), specRewriter.getColumnRefMap());
         if (!whereAnalysis.isSupport()) {
-            notFit("where(original) not support, reason=" + whereAnalysis.getReason());
+            notFit("where: original not support, reason=" + whereAnalysis.getReason());
         }
 
         return compareAndRewriteWhere();
@@ -152,14 +152,14 @@ public class WhereRewriter {
 
             Optional<EquivalentClass> origEcOpt = origEcList.stream().filter(x -> x.contain(oneColumnInEc)).findAny();
             if (origEcOpt.isEmpty()) {
-                notFit("where in mv[%s] not exists in query");
+                notFit("where: mv has equal predicate(s) not exists in query - 1");
                 return compensation;
             }
             EquivalentClass origEc = origEcOpt.get();
 
             if (!origEc.getColumns().containsAll(mvEc.getColumns())) {
                 // eg (colM, colN) --- (colM)
-                notFit("where in query not cover where in mv");
+                notFit("where: mv has equal predicate(s) not exists in query - 2");
                 return null;
             }
 
@@ -233,7 +233,7 @@ public class WhereRewriter {
                 if (mvRangeOnThisEc.size() == 0) {
                     continue;
                 } else {
-                    notFit("mv condition not cover by original");
+                    notFit("where: mv has range predicate(s) not exists in query - 1");
                     return compensation;
                 }
             }
@@ -249,7 +249,7 @@ public class WhereRewriter {
                 shouldLargeRange = shouldLargeRange.intersection(mvRangeOnThisEc.get(i));
             }
             if (!shouldLargeRange.coverOtherValue(shouldSmallRange)) {
-                notFit("mv range not cover original");
+                notFit("where: mv has range predicate(s) not exists in query - 2");
                 return compensation;
             }
             PredicateRange comp = shouldSmallRange.baseOn(shouldLargeRange);
@@ -298,11 +298,11 @@ public class WhereRewriter {
                 DereferenceExpression mvLeft = RewriteUtils.findColumnInMv(left, mvDetail.getSelectableColumn(), mvDetail.getTableNameExpression());
                 DereferenceExpression mvRight = RewriteUtils.findColumnInMv(right, mvDetail.getSelectableColumn(), mvDetail.getTableNameExpression());
                 if (mvLeft == null) {
-                    notFit("cannot find column in mv:" + left);
+                    notFit("where: cannot find column in mv:" + left);
                     return list;
                 }
                 if (mvRight == null) {
-                    notFit("cannot find column in mv:" + right);
+                    notFit("where: cannot find column in mv:" + right);
                     return list;
                 }
                 list.add(new ComparisonExpression(EQUAL, mvLeft, mvRight));
@@ -356,7 +356,7 @@ public class WhereRewriter {
             if (after != null) {
                 replaced.add(after);
             } else {
-                notFit("could not handle other predicate" + before);
+                notFit("where: could not handle other predicate" + before);
                 break;
             }
         }
@@ -377,8 +377,6 @@ public class WhereRewriter {
         private void __notSupport(Expression node) {
             LOG.warn("not support:" + node);
         }
-        // ======== base
-        // ======== base
 
         @Override
         protected Expression visitIdentifier(Identifier node, Void context) {
@@ -404,8 +402,6 @@ public class WhereRewriter {
             return null;
         }
 
-        // ======== base
-        // ======== base
         @Override
         protected Expression visitLikePredicate(LikePredicate node, Void context) {
             Expression expr = process(node.getValue());

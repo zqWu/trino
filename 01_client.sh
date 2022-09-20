@@ -4,12 +4,12 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 --server 127.0.0.1:8080 \
 --debug \
 --execute "
-SELECT mfgr mfgr2, brand, type type2, size
-from iceberg.kernel_db01.part03_2
-where 1=1
-  and mfgr='Manufacturer#1'
-  and size>=10 and size<40
-GROUP BY mfgr, brand, type, size;
+SELECT mfgr, brand, s0, s3
+from iceberg.kernel_db01.part04_2
+where mfgr='Manufacturer#4'
+  and s0=s1
+  and s0=s2
+GROUP BY mfgr, brand, s0, s3
 ;
 "
 

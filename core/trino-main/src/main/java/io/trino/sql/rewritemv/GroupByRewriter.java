@@ -61,7 +61,7 @@ public class GroupByRewriter {
         // 处理了 origGroup=空 的情况
         if (origGroupOpt.isEmpty()) {
             if (mvGroupOpt.isPresent()) {
-                notFit("groupBy rewrite: original has not groupBy, whereas mv has groupBy");
+                notFit("not match : groupBy : original has not groupBy, mv has groupBy");
             }
             return;
         }
@@ -80,7 +80,7 @@ public class GroupByRewriter {
         List<GroupingElement> origList = orig.getGroupingElements();
         List<QualifiedColumn> origGroupByColumn = extractGroupColumn(origList, specRewriter.getColumnRefMap());
         if (origGroupByColumn.size() != origList.size()) {
-            notFit("groupBy rewrite: contains non column group");
+            notFit("not match : groupBy : contains non column group");
         } else {
             rewriteSimpleGroupBy(orig.isDistinct(), origGroupByColumn);
             processHaving();
@@ -96,7 +96,7 @@ public class GroupByRewriter {
      */
     private void mvHasGroupBy(GroupBy orig, GroupBy mv) {
         if (!Objects.equals(orig.isDistinct(), mv.isDistinct())) {
-            notFit("groupBy rewrite: groupBy has different isDistinct()");
+            notFit("not match : groupBy : groupBy has different isDistinct()");
             return;
         }
         // isDistinct 相同了
@@ -105,20 +105,20 @@ public class GroupByRewriter {
         List<GroupingElement> mvList = mv.getGroupingElements();
         if (mvList.size() < origList.size()) {
             // mv less: not fit
-            notFit("groupBy rewrite: mv groupBy more coarse");
+            notFit("not match : groupBy : mv groupBy more coarse");
             return;
         }
 
         // 目前只支持 SimpleGroupBy
         List<QualifiedColumn> origGroupByColumn = extractGroupColumn(origList, specRewriter.getColumnRefMap());
         if (origGroupByColumn.size() != origList.size()) {
-            notFit("groupBy rewrite: contains non column group");
+            notFit("not match : groupBy : contains non column group");
             return;
         }
 
         List<QualifiedColumn> mvGroupByColumn = extractGroupColumn(mvList, mvDetail.getColumnRefMap());
         if (mvGroupByColumn.size() != mvList.size()) {
-            notFit("groupBy rewrite: contains non column group");
+            notFit("not match : groupBy : contains non column group");
             return;
         }
 
@@ -132,14 +132,14 @@ public class GroupByRewriter {
             // 不直接包含, 通过ec进行查找
             EquivalentClass ec = specRewriter.getEquivalentClassByColumn(origCol);
             if (ec == null || ec.getColumns().size() == 1) { // size=1表面 只包含 origCol
-                notFit("groupBy rewrite: original group not contained in mv:" + origCol.toString());
+                notFit("not match : groupBy : original group not contained in mv:" + origCol.toString());
                 return;
             }
 
             // 该ec的一列 在 groupBy中
             boolean mvAlsoGroupByThisEc = mvGroupByColumn.stream().anyMatch(col -> ec.contain(col));
             if (!mvAlsoGroupByThisEc) {
-                LOG.debug("groupBy rewrite: using ec :" + origCol.toString());
+                LOG.debug("not match : groupBy : using ec :" + origCol.toString());
                 notFit("groupBy column not in mv:" + origCol);
                 return;
             }
@@ -166,7 +166,7 @@ public class GroupByRewriter {
         for (QualifiedColumn col : origGroupColumn) {
             DereferenceExpression colInMv = RewriteUtils.findColumnInMv(col, specRewriter.getMvSelectableColumnExtend(), mvDetail.getTableNameExpression());
             if (colInMv == null) {
-                notFit("groupBy rewrite: mv not have field=" + col);
+                notFit("not match : groupBy : mv not have field=" + col);
                 return;
             }
             SimpleGroupBy simpleGroupBy = new SimpleGroupBy(Arrays.asList(colInMv));
@@ -190,20 +190,20 @@ public class GroupByRewriter {
         List<QualifiedColumn> resultList = new ArrayList<>(groupingElements.size());
         for (GroupingElement element : groupingElements) {
             if (!(element instanceof SimpleGroupBy)) {
-                LOG.debug("groupBy rewrite: only support SimpleGroupBy" + element);
+                LOG.debug("not match : groupBy : only support SimpleGroupBy" + element);
                 continue;
             }
 
             List<Expression> expressions = element.getExpressions();
             if (expressions.size() != 1) {
-                LOG.debug("groupBy rewrite: only support 1 column expression in group" + element);
+                LOG.debug("not match : groupBy : only support 1 column expression in group" + element);
                 continue;
             }
 
             Expression expr = expressions.get(0);
             QualifiedColumn qualifiedColumn = refMap.get(expr);
             if (qualifiedColumn == null) {
-                LOG.debug("groupBy rewrite: column's expression cannot be found:" + expr);
+                LOG.debug("not match : groupBy : column's expression cannot be found:" + expr);
                 continue;
             }
             resultList.add(qualifiedColumn);

@@ -29,17 +29,26 @@ select * from iceberg.kernel_db01.mv_part_04_1;
 ## 测试sql, 预期能够替换
 ```sql
 -- sql1, 原mv select
-SELECT mfgr, brand, s0, count(*) as _cnt
+SELECT mfgr, brand, s0
 from iceberg.kernel_db01.part04_1
 where mfgr='Manufacturer#4'
   and s0=s1 
   and s0=s2
 
--- sql1, 原mv的基础上 多了 groupBy
-SELECT mfgr, brand, s0, count(*) as _cnt
+-- 原mv的基础上 多了 groupBy, 且字段包含
+SELECT mfgr, brand, s0
 from iceberg.kernel_db01.part04_1
 where mfgr='Manufacturer#4'
   and s0=s1 
   and s0=s2
 GROUP BY mfgr, brand, s0
+
+
+-- 原mv的基础上 多了 groupBy, 且字段不包含
+SELECT mfgr, brand, s0, s3
+from iceberg.kernel_db01.part04_1
+where mfgr='Manufacturer#4'
+  and s0=s1
+  and s0=s2
+GROUP BY mfgr, brand, s0, s3
 ```
