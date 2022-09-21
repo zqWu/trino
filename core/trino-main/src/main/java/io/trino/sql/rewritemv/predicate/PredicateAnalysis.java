@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.where;
+package io.trino.sql.rewritemv.predicate;
 
 import io.trino.sql.rewritemv.QualifiedColumn;
 
@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class WhereAnalysis {
+public class PredicateAnalysis {
     private boolean support = true;     // false when not support
     private String reason;              // why not support
     private final List<PredicateEqual> equalList = new ArrayList<>();
@@ -15,9 +15,9 @@ public class WhereAnalysis {
     private List<EquivalentClass> ecList;
 
     // 不要对 EMPTY_WHERE 进行任何写操作
-    public static final WhereAnalysis EMPTY_WHERE = new WhereAnalysis();
+    public static final PredicateAnalysis EMPTY_WHERE = new PredicateAnalysis();
 
-    public WhereAnalysis() {
+    public PredicateAnalysis() {
     }
 
     public void notSupport(String reason) {

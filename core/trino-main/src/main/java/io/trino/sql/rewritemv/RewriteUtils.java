@@ -5,11 +5,11 @@ import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.Field;
 import io.trino.sql.analyzer.ResolvedField;
-import io.trino.sql.rewritemv.where.EquivalentClass;
-import io.trino.sql.rewritemv.where.PredicateEqual;
-import io.trino.sql.rewritemv.where.PredicateOther;
-import io.trino.sql.rewritemv.where.PredicateRange;
-import io.trino.sql.rewritemv.where.WhereAnalysis;
+import io.trino.sql.rewritemv.predicate.EquivalentClass;
+import io.trino.sql.rewritemv.predicate.PredicateEqual;
+import io.trino.sql.rewritemv.predicate.PredicateOther;
+import io.trino.sql.rewritemv.predicate.PredicateRange;
+import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.tree.AliasedRelation;
 import io.trino.sql.tree.AstVisitor;
 import io.trino.sql.tree.BetweenPredicate;
@@ -80,7 +80,7 @@ public class RewriteUtils {
      */
     public static Map<QualifiedColumn, SelectItem> extractSelectSingleField(QuerySpecification spec,
                                                                             Map<Expression, QualifiedColumn> columnRefMap,
-                                                                            WhereAnalysis whereAnalysis) {
+                                                                            PredicateAnalysis whereAnalysis) {
         Select select = spec.getSelect();
         Map<QualifiedColumn, SelectItem> map = new HashMap<>();
 
@@ -194,8 +194,8 @@ public class RewriteUtils {
     /**
      * flatten where to atomic predicate
      */
-    public static WhereAnalysis analyzeWhere(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
-        WhereAnalysis whereAnalysis = new WhereAnalysis();
+    public static PredicateAnalysis analyzeWhere(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
+        PredicateAnalysis whereAnalysis = new PredicateAnalysis();
         WhereVisitor visitor = new WhereVisitor(map);
         visitor.process(whereExpr, whereAnalysis);
         whereAnalysis.build();
@@ -203,7 +203,7 @@ public class RewriteUtils {
         return whereAnalysis;
     }
 
-    private static class WhereVisitor extends AstVisitor<Void, WhereAnalysis> {
+    private static class WhereVisitor extends AstVisitor<Void, PredicateAnalysis> {
         private final Map<Expression, QualifiedColumn> refMap;
 
         public WhereVisitor(Map<Expression, QualifiedColumn> refMap) {
@@ -211,7 +211,7 @@ public class RewriteUtils {
         }
 
         @Override
-        protected Void visitComparisonExpression(ComparisonExpression node, WhereAnalysis context) {
+        protected Void visitComparisonExpression(ComparisonExpression node, PredicateAnalysis context) {
             // TODO 对于比较, 需要区分是 colA op colB, 还是 colA op value
             // colA=3这样的形式
             Expression left = node.getLeft();
@@ -255,7 +255,7 @@ public class RewriteUtils {
         }
 
         @Override
-        protected Void visitBetweenPredicate(BetweenPredicate node, WhereAnalysis context) {
+        protected Void visitBetweenPredicate(BetweenPredicate node, PredicateAnalysis context) {
             Expression value = node.getValue();
             Expression min = node.getMin();
             Expression max = node.getMax();
@@ -273,7 +273,7 @@ public class RewriteUtils {
         }
 
         @Override
-        protected Void visitLogicalExpression(LogicalExpression node, WhereAnalysis context) {
+        protected Void visitLogicalExpression(LogicalExpression node, PredicateAnalysis context) {
             if (LogicalExpression.Operator.AND == node.getOperator()) {
                 for (Expression expr : node.getTerms()) {
                     process(expr, context);
@@ -285,19 +285,19 @@ public class RewriteUtils {
         }
 
         @Override
-        protected Void visitIsNotNullPredicate(IsNotNullPredicate node, WhereAnalysis context) {
+        protected Void visitIsNotNullPredicate(IsNotNullPredicate node, PredicateAnalysis context) {
             context.addPredicate(new PredicateOther(node));
             return null;
         }
 
         @Override
-        protected Void visitIsNullPredicate(IsNullPredicate node, WhereAnalysis context) {
+        protected Void visitIsNullPredicate(IsNullPredicate node, PredicateAnalysis context) {
             context.addPredicate(new PredicateOther(node));
             return null;
         }
 
         @Override
-        protected Void visitExpression(Expression node, WhereAnalysis context) {
+        protected Void visitExpression(Expression node, PredicateAnalysis context) {
             context.addPredicate(new PredicateOther(node));
             return null;
         }

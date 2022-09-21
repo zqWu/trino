@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.where;
+package io.trino.sql.rewritemv.predicate;
 
 import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;
@@ -11,7 +11,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 

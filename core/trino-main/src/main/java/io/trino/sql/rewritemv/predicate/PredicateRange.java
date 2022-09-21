@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.where;
+package io.trino.sql.rewritemv.predicate;
 
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.rewritemv.QualifiedColumn;

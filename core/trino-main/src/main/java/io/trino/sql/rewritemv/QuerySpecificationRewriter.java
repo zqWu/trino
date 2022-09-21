@@ -3,8 +3,7 @@ package io.trino.sql.rewritemv;
 import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;
 import io.trino.metadata.QualifiedObjectName;
-import io.trino.sql.rewritemv.where.EquivalentClass;
-import io.trino.sql.rewritemv.where.WhereRewriter;
+import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.tree.AliasedRelation;
 import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.AstVisitor;
@@ -148,7 +147,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         WhereRewriter whereRewriter = new WhereRewriter(this, mvDetail);
         Expression expression = whereRewriter.process();
         if (isMvFit()) {
-            ecList = whereRewriter.getWhereAnalysis().getEcList();
+            ecList = whereRewriter.getWherePredicate().getEcList();
             mvSelectableColumnExtend = whereRewriter.getMvSelectableColumnExtend();
         }
 

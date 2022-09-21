@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.where;
+package io.trino.sql.rewritemv.predicate;
 
 import io.trino.sql.tree.Expression;
 
@@ -9,7 +9,7 @@ public class AtomicWhere {
     public enum WhereType {
         COLUMN_EQUAL,           // predicate equal, colA = colB
         COLUMN_RANGE,           // predicate range, colA > 3
-        LITERAL_EQUAL,          // 3 = 2
+        // LITERAL_EQUAL,          // 3 = 2
         OTHER                   // other, a like '%x', colA is not null
     }
 

@@ -1,4 +1,4 @@
-package io.trino.sql.rewritemv.where;
+package io.trino.sql.rewritemv.predicate;
 
 import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.Expression;

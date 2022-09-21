@@ -3,7 +3,7 @@ package io.trino.sql.rewritemv;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.ViewInfo;
 import io.trino.sql.analyzer.Analysis;
-import io.trino.sql.rewritemv.where.WhereAnalysis;
+import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.Identifier;
@@ -27,7 +27,7 @@ public class MvDetail {
     private final Map<QualifiedColumn, SelectItem> selectableColumn;
     private final List<Table> baseTable;
     private final DereferenceExpression tableNameExpression; // mv的基本表达式, 因为大量用到
-    private final WhereAnalysis whereAnalysis;
+    private final PredicateAnalysis wherePredicate;
 
     public MvDetail(QualifiedObjectName mvName, Statement statement, ViewInfo viewInfo, Analysis analysis) {
         this.name = mvName;
@@ -49,18 +49,18 @@ public class MvDetail {
 
         // ======== 分析 where
         if (querySpecification.getWhere().isPresent()) {
-            this.whereAnalysis = RewriteUtils.analyzeWhere(querySpecification.getWhere().get(), columnRefMap);
+            this.wherePredicate = RewriteUtils.analyzeWhere(querySpecification.getWhere().get(), columnRefMap);
         } else {
-            this.whereAnalysis = WhereAnalysis.EMPTY_WHERE;
+            this.wherePredicate = PredicateAnalysis.EMPTY_WHERE;
         }
         // ======== 提取 selectableColumn, Map<QualifiedColumn, SelectItem>
-        selectableColumn = RewriteUtils.extractSelectSingleField(querySpecification, columnRefMap, whereAnalysis);
+        selectableColumn = RewriteUtils.extractSelectSingleField(querySpecification, columnRefMap, wherePredicate);
     }
 
     // ======== get
 
-    public WhereAnalysis getWhereAnalysis() {
-        return whereAnalysis;
+    public PredicateAnalysis getWherePredicate() {
+        return wherePredicate;
     }
 
     public QualifiedObjectName getName() {

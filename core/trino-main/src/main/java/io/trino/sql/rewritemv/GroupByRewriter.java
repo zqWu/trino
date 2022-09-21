@@ -1,7 +1,7 @@
 package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
-import io.trino.sql.rewritemv.where.EquivalentClass;
+import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.GroupBy;
