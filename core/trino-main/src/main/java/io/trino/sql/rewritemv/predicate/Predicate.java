@@ -5,8 +5,8 @@ import io.trino.sql.tree.Expression;
 /**
  * atomic where = an expression which result is true / false
  */
-public class AtomicWhere {
-    public enum WhereType {
+public abstract class Predicate {
+    public enum PredicateType {
         COLUMN_EQUAL,           // predicate equal, colA = colB
         COLUMN_RANGE,           // predicate range, colA > 3
         // LITERAL_EQUAL,          // 3 = 2
@@ -17,11 +17,11 @@ public class AtomicWhere {
     protected boolean alwaysTrue = false;
     protected boolean alwaysFalse = false;
     protected final Expression expr;
-    protected final WhereType whereType;
+    protected final PredicateType predicateType;
 
-    public AtomicWhere(Expression expr, WhereType whereType) {
+    public Predicate(Expression expr, PredicateType predicateType) {
         this.expr = expr;
-        this.whereType = whereType;
+        this.predicateType = predicateType;
     }
 
     // ========get
@@ -38,8 +38,8 @@ public class AtomicWhere {
         return expr;
     }
 
-    public WhereType getWhereType() {
-        return whereType;
+    public PredicateType getPredicateType() {
+        return predicateType;
     }
 
 }

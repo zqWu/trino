@@ -49,9 +49,9 @@ public class MvDetail {
 
         // ======== 分析 where
         if (querySpecification.getWhere().isPresent()) {
-            this.wherePredicate = RewriteUtils.analyzeWhere(querySpecification.getWhere().get(), columnRefMap);
+            this.wherePredicate = RewriteUtils.analyzePredicate(querySpecification.getWhere().get(), columnRefMap);
         } else {
-            this.wherePredicate = PredicateAnalysis.EMPTY_WHERE;
+            this.wherePredicate = PredicateAnalysis.EMPTY_PREDICATE;
         }
         // ======== 提取 selectableColumn, Map<QualifiedColumn, SelectItem>
         selectableColumn = RewriteUtils.extractSelectSingleField(querySpecification, columnRefMap, wherePredicate);

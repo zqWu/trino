@@ -5,9 +5,9 @@ import io.trino.sql.tree.Expression;
 
 import java.util.Objects;
 
-public class PredicateOther extends AtomicWhere {
+public class PredicateOther extends Predicate {
     public PredicateOther(Expression expr) {
-        super(expr, WhereType.OTHER);
+        super(expr, PredicateType.OTHER);
 
         if (expr instanceof ComparisonExpression) {
             ComparisonExpression c = (ComparisonExpression) expr;

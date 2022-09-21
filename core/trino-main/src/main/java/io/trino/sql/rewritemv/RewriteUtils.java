@@ -194,7 +194,7 @@ public class RewriteUtils {
     /**
      * flatten where to atomic predicate
      */
-    public static PredicateAnalysis analyzeWhere(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
+    public static PredicateAnalysis analyzePredicate(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
         PredicateAnalysis whereAnalysis = new PredicateAnalysis();
         WhereVisitor visitor = new WhereVisitor(map);
         visitor.process(whereExpr, whereAnalysis);

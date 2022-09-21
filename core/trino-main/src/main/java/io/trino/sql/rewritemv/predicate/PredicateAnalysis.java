@@ -14,8 +14,8 @@ public class PredicateAnalysis {
     private final List<PredicateOther> otherList = new ArrayList<>();
     private List<EquivalentClass> ecList;
 
-    // 不要对 EMPTY_WHERE 进行任何写操作
-    public static final PredicateAnalysis EMPTY_WHERE = new PredicateAnalysis();
+    // 不要对 EMPTY_PREDICATE 进行任何写操作
+    public static final PredicateAnalysis EMPTY_PREDICATE = new PredicateAnalysis();
 
     public PredicateAnalysis() {
     }
@@ -47,7 +47,7 @@ public class PredicateAnalysis {
 
     }
 
-    public void addPredicate(AtomicWhere p) {
+    public void addPredicate(Predicate p) {
         if (p instanceof PredicateEqual) {
             equalList.add((PredicateEqual) p);
         } else if (p instanceof PredicateRange) {
@@ -61,14 +61,14 @@ public class PredicateAnalysis {
     }
 
     /**
-     * 是否包含有效的 where 条件 == 有些条件不是always true
+     * 是否包含有效的 predicate 条件 == 有些条件不是always true
      */
     public boolean hasEffectivePredicate() {
-        if (this == EMPTY_WHERE) {
+        if (this == EMPTY_PREDICATE) {
             return false;
         }
 
-        List<AtomicWhere> allPredicate = new ArrayList<>();
+        List<Predicate> allPredicate = new ArrayList<>();
         allPredicate.addAll(equalList);
         allPredicate.addAll(rangeList);
         allPredicate.addAll(otherList);
@@ -77,7 +77,7 @@ public class PredicateAnalysis {
             return false;
         }
 
-        Optional<?> any = allPredicate.stream().filter(AtomicWhere::isAlwaysTrue).findAny();
+        Optional<?> any = allPredicate.stream().filter(Predicate::isAlwaysTrue).findAny();
         return any.isPresent();
     }
 

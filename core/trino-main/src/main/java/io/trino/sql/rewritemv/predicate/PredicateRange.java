@@ -31,7 +31,7 @@ import static io.trino.util.DateTimeUtils.parseYearMonthInterval;
  * expression: colA >,>=,=,<=,< constant
  * eg. colA > 3, colA <= 7
  */
-public class PredicateRange extends AtomicWhere {
+public class PredicateRange extends Predicate {
 
     public static class PredicateRangeBound {
         private final ComparisonExpression.Operator op;
@@ -216,7 +216,7 @@ public class PredicateRange extends AtomicWhere {
     private PredicateRangeBound upper;
 
     public PredicateRange(Expression expr, QualifiedColumn left, Literal right, ComparisonExpression.Operator op) {
-        super(expr, WhereType.COLUMN_RANGE);
+        super(expr, PredicateType.COLUMN_RANGE);
         if (!validOperator(op)) {
             throw new RuntimeException("not support operator:" + op);
         }
@@ -249,7 +249,7 @@ public class PredicateRange extends AtomicWhere {
     }
 
     private PredicateRange(QualifiedColumn left, EquivalentClass ec) {
-        super(null, WhereType.COLUMN_RANGE);
+        super(null, PredicateType.COLUMN_RANGE);
         this.left = left;
         this.ec = ec;
     }

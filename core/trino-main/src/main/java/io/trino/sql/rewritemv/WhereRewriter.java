@@ -1,32 +1,19 @@
 package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
-import io.trino.sql.rewritemv.predicate.AtomicWhere;
+import io.trino.sql.rewritemv.predicate.Predicate;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.rewritemv.predicate.PredicateEqual;
 import io.trino.sql.rewritemv.predicate.PredicateOther;
 import io.trino.sql.rewritemv.predicate.PredicateRange;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
-import io.trino.sql.tree.ArithmeticBinaryExpression;
-import io.trino.sql.tree.ArithmeticUnaryExpression;
-import io.trino.sql.tree.AstVisitor;
 import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.DereferenceExpression;
-import io.trino.sql.tree.ExistsPredicate;
 import io.trino.sql.tree.Expression;
-import io.trino.sql.tree.Identifier;
-import io.trino.sql.tree.InListExpression;
-import io.trino.sql.tree.InPredicate;
-import io.trino.sql.tree.IsNotNullPredicate;
-import io.trino.sql.tree.IsNullPredicate;
-import io.trino.sql.tree.LikePredicate;
-import io.trino.sql.tree.Literal;
 import io.trino.sql.tree.LogicalExpression;
-import io.trino.sql.tree.NotExpression;
 import io.trino.sql.tree.SelectItem;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,7 +67,7 @@ public class WhereRewriter {
             return null;
         }
 
-        wherePredicate = RewriteUtils.analyzeWhere(optWhere.get(), specRewriter.getColumnRefMap());
+        wherePredicate = RewriteUtils.analyzePredicate(optWhere.get(), specRewriter.getColumnRefMap());
         if (!wherePredicate.isSupport()) {
             notFit("where: original not support, reason=" + wherePredicate.getReason());
         }
@@ -96,7 +83,7 @@ public class WhereRewriter {
      */
     private Expression compareAndRewriteWhere() {
         // === 处理equal条件
-        List<AtomicWhere> compensation = new ArrayList<>();
+        List<Predicate> compensation = new ArrayList<>();
         String errProcessEqual = PredicateUtil.processPredicateEqual(
                 wherePredicate.getEcList(),
                 mvDetail.getWherePredicate().getEcList(),
@@ -108,9 +95,10 @@ public class WhereRewriter {
         }
 
         // !!! ec处理完毕后, 就可以更新在mv中的 selectable字段
-        mvSelectableColumnExtend = RewriteUtils.extendSelectableColumnByEc(mvDetail.getSelectableColumn(), wherePredicate.getEcList());
+        mvSelectableColumnExtend = RewriteUtils.extendSelectableColumnByEc(mvDetail.getSelectableColumn(),
+                wherePredicate.getEcList());
 
-        List<AtomicWhere> list2 = new ArrayList<>();
+        List<Predicate> list2 = new ArrayList<>();
         String errProcessRange = PredicateUtil.rangePredicateCompare(wherePredicate.getRangeList(),
                 mvDetail.getWherePredicate().getRangeList(),
                 wherePredicate.getEcList(),
@@ -119,14 +107,24 @@ public class WhereRewriter {
             notFit("where: " + errProcessRange);
             return null;
         }
-
         compensation.addAll(list2);
 
         // 整理 compensation
         List<Expression> conditions = parseAtomicWhere(compensation);
 
-        // 3. 剩下的 predicate 处理
-        List<Expression> list3 = processPredicateOther();
+        // predicateOther的处理
+        List<Expression> list3 = new ArrayList<>();
+        String errProcessOther = PredicateUtil.processPredicateOther(wherePredicate.getOtherList(),
+                mvDetail.getWherePredicate().getOtherList(),
+                list3,
+                mvSelectableColumnExtend,
+                columnRefMap,
+                mvDetail
+        );
+        if (errProcessOther != null) {
+            notFit("where: " + errProcessOther);
+            return null;
+        }
         conditions.addAll(list3);
 
         if (conditions == null || conditions.size() == 0) {
@@ -138,34 +136,12 @@ public class WhereRewriter {
         }
     }
 
-    /**
-     * 处理剩下的条件, 非 equal / range
-     *
-     * @return 补偿条件
-     */
-    private List<Expression> processPredicateOther() {
-        List<Expression> queryOther = preProcess(wherePredicate.getOtherList());
-        List<Expression> mvOthers = preProcess(mvPredicateAnalysis.getOtherList());
-
-
-        List<Expression> compensation = new ArrayList<>();
-        for (Expression expr : queryOther) {
-            if (mvOthers.contains(expr)) {
-                mvOthers.remove(expr);
-            } else {
-                compensation.add(expr);
-            }
-        }
-
-        return compensation;
-    }
-
-    private List<Expression> parseAtomicWhere(List<AtomicWhere> compensation) {
+    private List<Expression> parseAtomicWhere(List<Predicate> compensation) {
         List<Expression> list = new ArrayList<>(compensation.size() + 3);
 
-        for (AtomicWhere atomicWhere : compensation) {
-            if (atomicWhere instanceof PredicateEqual) {
-                PredicateEqual pe = (PredicateEqual) atomicWhere;
+        for (Predicate predicate : compensation) {
+            if (predicate instanceof PredicateEqual) {
+                PredicateEqual pe = (PredicateEqual) predicate;
                 QualifiedColumn left = pe.getLeft();
                 QualifiedColumn right = pe.getRight();
                 DereferenceExpression mvLeft = RewriteUtils.findColumnInMv(left, mvDetail.getSelectableColumn(), mvDetail.getTableNameExpression());
@@ -179,8 +155,8 @@ public class WhereRewriter {
                     return list;
                 }
                 list.add(new ComparisonExpression(EQUAL, mvLeft, mvRight));
-            } else if (atomicWhere instanceof PredicateRange) {
-                PredicateRange pr = (PredicateRange) atomicWhere;
+            } else if (predicate instanceof PredicateRange) {
+                PredicateRange pr = (PredicateRange) predicate;
                 DereferenceExpression columnInMv = RewriteUtils.findColumnInMv(pr.getLeft(), mvSelectableColumnExtend, mvDetail.getTableNameExpression());
                 if (pr.getEqual() != PredicateRange.PredicateRangeBound.UNBOUND) {
                     list.add(new ComparisonExpression(EQUAL, columnInMv, pr.getEqual().getValue()));
@@ -193,7 +169,7 @@ public class WhereRewriter {
                 }
             } else {
                 // PredicateOther
-                PredicateOther other = (PredicateOther) atomicWhere;
+                PredicateOther other = (PredicateOther) predicate;
                 // 需要替换 column
                 LOG.debug("TODO PredicateOther 条件的处理");
             }
@@ -202,185 +178,6 @@ public class WhereRewriter {
         return list;
     }
 
-    /**
-     * TODO: 这里的处理需要加强, 如果 expression 自身不包含 col,但是 child包含, 则怎么处理
-     * colA + 3 > 4
-     * 要用 AstVisitor进行处理
-     * <p>
-     * 处理 other 类型的 predicate
-     * - 移除 True条件
-     * - column 替换, 使用mv中的column进行替换
-     */
-    private List<Expression> preProcess(List<PredicateOther> other) {
-        if (other == null || other.size() == 0) {
-            return Collections.EMPTY_LIST;
-        }
-
-        List<Expression> replaced = new ArrayList<>(other.size());
-
-        for (PredicateOther predicate : other) {
-            if (predicate.isAlwaysTrue()) {
-                continue;
-            }
-
-            Expression before = predicate.getExpr();
-            ColumnRewriteVisitor rewriter = new ColumnRewriteVisitor();
-            Expression after = rewriter.process(before);
-            if (after != null) {
-                replaced.add(after);
-            } else {
-                notFit("where: could not handle other predicate" + before);
-                break;
-            }
-        }
-
-        return replaced;
-    }
-
-
-    /**
-     * 改写 PredicateOther的 visitor类
-     */
-    private class ColumnRewriteVisitor extends AstVisitor<Expression, Void> {
-
-        private DereferenceExpression getColumnReference(QualifiedColumn col) {
-            return RewriteUtils.findColumnInMv(col, mvSelectableColumnExtend, mvDetail.getTableNameExpression());
-        }
-
-        private void __notSupport(Expression node) {
-            LOG.warn("not support:" + node);
-        }
-
-        @Override
-        protected Expression visitIdentifier(Identifier node, Void context) {
-            QualifiedColumn col = columnRefMap.get(node);
-            return getColumnReference(col);
-        }
-
-        @Override
-        protected Expression visitLiteral(Literal node, Void context) {
-            return node;
-        }
-
-        @Override
-        protected Expression visitInListExpression(InListExpression node, Void context) {
-            // 目前仅处理  in (val1, val2) 这样的形式, 如果 in (select ... ) 则不处理
-            List<Expression> values = node.getValues();
-            boolean allLiteral = values.stream().allMatch(v -> (v instanceof Literal));
-            if (allLiteral) {
-                return node;
-            }
-
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitLikePredicate(LikePredicate node, Void context) {
-            Expression expr = process(node.getValue());
-            if (expr == null) {
-                return null;
-            }
-            return new LikePredicate(expr, node.getPattern(), node.getEscape());
-        }
-
-        @Override
-        protected Expression visitIsNotNullPredicate(IsNotNullPredicate node, Void context) {
-            Expression expr = process(node.getValue());
-            if (expr == null) {
-                return null;
-            }
-            return new IsNotNullPredicate(expr);
-        }
-
-        @Override
-        protected Expression visitIsNullPredicate(IsNullPredicate node, Void context) {
-            Expression expr = process(node.getValue());
-            if (expr == null) {
-                return null;
-            }
-            return new IsNullPredicate(expr);
-        }
-
-        @Override
-        protected Expression visitExists(ExistsPredicate node, Void context) {
-            LOG.warn("not support:" + node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitInPredicate(InPredicate node, Void context) {
-
-            Expression newValue = process(node.getValue());
-            InListExpression inListExpr = (InListExpression) process(node.getValueList());
-            if (newValue != null && inListExpr != null) {
-                return new InPredicate(newValue, inListExpr);
-            }
-
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitNotExpression(NotExpression node, Void context) {
-            Expression value = node.getValue();
-            Expression newExpr = process(value);
-            if (newExpr == null) {
-                return null;
-            }
-            return new NotExpression(newExpr);
-        }
-
-        @Override
-        protected Expression visitComparisonExpression(ComparisonExpression node, Void context) {
-            ComparisonExpression.Operator op = node.getOperator();
-
-            Expression newLeft = process(node.getLeft());
-            Expression newRight = process(node.getRight());
-            if (newLeft != null && newRight != null) {
-                return new ComparisonExpression(op, newLeft, newRight);
-            }
-
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitArithmeticBinary(ArithmeticBinaryExpression node, Void context) {
-            ArithmeticBinaryExpression.Operator op = node.getOperator();
-            if (node.getLeft() instanceof Literal && node.getRight() instanceof Literal) {
-                return node;
-            }
-            Expression newLeft = process(node.getLeft());
-            Expression newRight = process(node.getRight());
-
-            if (newLeft != null && newRight != null) {
-                return new ArithmeticBinaryExpression(op, newLeft, newRight);
-            }
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitArithmeticUnary(ArithmeticUnaryExpression node, Void context) {
-            __notSupport(node);
-            return null;
-        }
-
-        /**
-         * 有些表达式 不属于上面 几种, 目前暂不支持
-         */
-        @Override
-        protected Expression visitExpression(Expression node, Void context) {
-            // TODO
-            __notSupport(node);
-            return null;
-        }
-
-
-    }
-
-    // ======== get
     private boolean isMvFit() {
         return queryRewriter.isMvFit();
     }
