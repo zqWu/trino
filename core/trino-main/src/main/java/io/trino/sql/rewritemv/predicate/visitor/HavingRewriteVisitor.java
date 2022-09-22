@@ -131,29 +131,7 @@ public class HavingRewriteVisitor extends HavingVisitor {
      * count(x) =======> sum(count_x)
      */
     private Expression processFunctionCount(FunctionCall node, QualifiedName funName) {
-//        List<Expression> arguments = node.getArguments();
-//        QualifiedColumn columnArg = null;
-//        if (arguments.size() == 0) { // case: count(*)
-//            columnArg = null;
-//        } else { // case: count(常数) or count(colA)
-//            Expression arg1 = arguments.get(0);
-//            if (arg1 instanceof Identifier || arg1 instanceof DereferenceExpression) {
-//                columnArg = origColumnRefMap.get(arg1);
-//                if (columnArg == null) {
-//                    LOG.debug(String.format("mv中未找到需要的字段 %s", arg1));
-//                    return null;
-//                }
-//            } else if (arg1 instanceof Literal) {
-//                columnArg = null;
-//            }
-//        }
-//
-//        Expression expr = findAndRewriteSelectItemIfPossible(funName, columnArg);
-//        if (expr == null && columnArg != null) {
-//            // 刚刚尝试的是 count(colA), 找不到再试一下 col(*)
-//            expr = findAndRewriteSelectItemIfPossible(funName, null);
-//        }
-        Expression expr = processFunctionCount(node, funName, true);
+        Expression expr = super.processFunctionCount(node, funName, true);
         if (expr != null) {
             return new FunctionCall(FUNCTION_SUM, List.of(expr));
         }

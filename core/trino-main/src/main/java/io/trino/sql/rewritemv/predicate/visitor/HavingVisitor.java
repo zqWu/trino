@@ -130,6 +130,7 @@ public abstract class HavingVisitor extends WhereColumnRewriteVisitor {
 
     /**
      * count 函数的处理
+     * count 有这些种: count(1), count(col), count(*)
      *
      * @param node FunctionCall
      * @param funName count

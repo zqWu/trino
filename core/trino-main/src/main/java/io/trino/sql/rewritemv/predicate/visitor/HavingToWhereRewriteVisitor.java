@@ -50,34 +50,6 @@ public class HavingToWhereRewriteVisitor extends HavingVisitor {
         }
     }
 
-    /**
-     * count 有这些种: count(1), count(col), count(*)
-     * 可能有0/1个参数
-     */
-//    private Expression processFunctionCount(FunctionCall node, QualifiedName funName) {
-//        List<Expression> arguments = node.getArguments();
-//        QualifiedColumn columnArg = null;
-//        if (arguments.size() == 0) { // case: count(*)
-//            columnArg = null;
-//        } else { // case: count(常数) or count(colA)
-//            Expression arg1 = arguments.get(0);
-//            if (arg1 instanceof Identifier || arg1 instanceof DereferenceExpression) {
-//                columnArg = origColumnRefMap.get(arg1);
-//                if (columnArg == null) {
-//                    LOG.debug(String.format("mv中未找到需要的字段 %s", arg1));
-//                    return null;
-//                }
-//            } else if (arg1 instanceof Literal) {
-//                columnArg = null;
-//            }
-//        }
-//
-//        Expression expr = findAndRewriteSelectItemIfPossible(funName, columnArg);
-//        if (expr == null) {
-//            LOG.debug(String.format("having 无法处理 %s(%s)", funName.getSuffix(), columnArg));
-//        }
-//        return expr;
-//    }
 
     /**
      * 直接查找
