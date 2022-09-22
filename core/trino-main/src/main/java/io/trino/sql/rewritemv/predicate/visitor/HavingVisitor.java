@@ -19,7 +19,9 @@ import java.util.Objects;
 
 public class HavingVisitor extends WhereColumnRewriteVisitor {
     protected static final Logger LOG = Logger.get(HavingVisitor.class);
-    protected final List<String> SUPPORT_FUNCTION = Arrays.asList("avg", "count", "max", "min", "sum");
+    protected static final List<String> SUPPORTED_FUNCTION = Arrays.asList("avg", "count", "max", "min", "sum");
+    protected static final QualifiedName FUNCTION_SUM = QualifiedName.of("sum");
+    protected static final QualifiedName FUNCTION_COUNT = QualifiedName.of("count");
 
     public HavingVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
                          Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {

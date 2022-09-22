@@ -264,8 +264,9 @@ public class GroupByRewriter {
     }
 
     private void differentGroupByRewriteHaving(PredicateAnalysis origHaving) {
+        boolean isMvHasGroupBy = mvDetail.getMvQuerySpec().getGroupBy().isPresent();
         ExpressionRewriter rewriter = new HavingRewriteVisitor(
-                specRewriter.getMvSelectableColumnExtend(), specRewriter.getColumnRefMap(), mvDetail);
+                specRewriter.getMvSelectableColumnExtend(), specRewriter.getColumnRefMap(), mvDetail, isMvHasGroupBy);
 
         List<Expression> compensation = new ArrayList<>();
         String errMsg = PredicateUtil.processPredicateOther(

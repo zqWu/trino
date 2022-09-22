@@ -7,7 +7,9 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 SELECT mfgr, brand
 from iceberg.kernel_db01.part04_5
 GROUP BY mfgr, brand
-having max(retailprice) > 1620;
+having max(retailprice) < 1890
+   and min(retailprice) > 910
+   and avg(retailprice) < 1390
 ;
 "
 

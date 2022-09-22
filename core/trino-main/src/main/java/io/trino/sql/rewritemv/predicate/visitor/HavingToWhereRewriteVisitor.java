@@ -15,6 +15,8 @@ import java.util.Map;
 
 
 /**
+ * mv 和 query 有着相同的 groupBy, 且query有having时, 才进行这样的改写
+ * <p>
  * 改写 having Expression的 Visitor类
  * rewrite 后 这些会并入 where 条件中
  * - column替换
@@ -32,7 +34,7 @@ public class HavingToWhereRewriteVisitor extends HavingVisitor {
         QualifiedName funName = node.getName();
         String name = funName.getSuffix();
 
-        if (!SUPPORT_FUNCTION.contains(name)) {
+        if (!SUPPORTED_FUNCTION.contains(name)) {
             return null;
         }
         switch (name) {

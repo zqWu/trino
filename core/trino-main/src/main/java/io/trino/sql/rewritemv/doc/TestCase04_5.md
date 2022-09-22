@@ -42,10 +42,44 @@ SELECT mfgr, brand
 from iceberg.kernel_db01.part04_5
 GROUP BY mfgr, brand
 having max(retailprice) > 1620;
-
 -- 手动改写
 select mfgr2, brand
 from iceberg.kernel_db01.mv_part04_5
 GROUP BY mfgr2, brand
 having max(max_price) > 1620
+
+
+
+
+
+-- 不同groupBy, original 多了having max/min
+SELECT mfgr, brand, avg(retailprice) as avg_price
+from iceberg.kernel_db01.part04_5
+GROUP BY mfgr, brand
+having max(retailprice) < 1890
+   and min(retailprice) > 910
+   and avg(retailprice) < 1390
+-- 手动改写
+SELECT mfgr2, brand, sum(sum_price)/sum(cnt_star) as avg_price
+from iceberg.kernel_db01.mv_part04_5
+GROUP BY mfgr2, brand
+having max(max_price) < 1890
+   and min(min_price) > 910
+   and sum(sum_price)/sum(cnt_star) < 1390
+
+
+-- max/min/avg
+SELECT mfgr, brand -- , avg(retailprice) as avg_price
+from iceberg.kernel_db01.part04_5
+GROUP BY mfgr, brand
+having max(retailprice) < 1890
+   and min(retailprice) > 910
+   and avg(retailprice) < 1390
+-- 手动改写
+SELECT mfgr2, brand -- , sum(sum_price)/sum(cnt_star) as avg_price
+from iceberg.kernel_db01.mv_part04_5
+GROUP BY mfgr2, brand
+having max(max_price) < 1890
+   and min(min_price) > 910
+   and sum(sum_price)/sum(cnt_star) < 1390
 ```

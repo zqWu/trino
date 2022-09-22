@@ -158,10 +158,8 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         WhereRewriter whereRewriter = new WhereRewriter(this, mvDetail);
         Expression expression = whereRewriter.process();
         if (isMvFit()) {
-            if (whereRewriter.getWherePredicate() != null) {
-                ecList = whereRewriter.getWherePredicate().getEcList();
-                mvSelectableColumnExtend = whereRewriter.getMvSelectableColumnExtend();
-            }
+            ecList = whereRewriter.getWherePredicate().getEcList();
+            mvSelectableColumnExtend = whereRewriter.getMvSelectableColumnExtend();
         }
 
         if (expression == null) {

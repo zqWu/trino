@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.trino.sql.rewritemv.predicate.PredicateAnalysis.EMPTY_PREDICATE;
 import static io.trino.sql.tree.ComparisonExpression.Operator.EQUAL;
 
 /**
@@ -29,7 +30,7 @@ public class WhereRewriter {
     private final QueryRewriter queryRewriter;
     private final QuerySpecificationRewriter specRewriter;
     private final MvDetail mvDetail;
-    private PredicateAnalysis wherePredicate;
+    private PredicateAnalysis wherePredicate = EMPTY_PREDICATE;
 
     // 在ec加持下, mv可选字段. 注意: 这个对象不是 mv持有
     private Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
@@ -38,6 +39,9 @@ public class WhereRewriter {
         this.specRewriter = specRewriter;
         this.queryRewriter = specRewriter.getQueryRewriter();
         this.mvDetail = mvDetail;
+
+        // 这个是初始化值, 会进行修改
+        mvSelectableColumnExtend = mvDetail.getMvSelectableColumn();
     }
 
     /**
