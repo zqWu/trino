@@ -21,7 +21,7 @@ import java.util.Map;
  * - column替换
  * - 函数支持
  */
-public class HavingToWhereRewriteVisitor extends HavingVisitor {
+public class HavingToWhereRewriteVisitor extends FunctionCallVisitor {
     public HavingToWhereRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
                                        Map<Expression, QualifiedColumn> columnRefMap,
                                        MvDetail mvDetail) {

@@ -18,14 +18,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class HavingVisitor extends WhereColumnRewriteVisitor {
-    protected static final Logger LOG = Logger.get(HavingVisitor.class);
+public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
+    protected static final Logger LOG = Logger.get(FunctionCallVisitor.class);
     protected static final List<String> SUPPORTED_FUNCTION = Arrays.asList("avg", "count", "max", "min", "sum");
     protected static final QualifiedName FUNCTION_SUM = QualifiedName.of("sum");
     protected static final QualifiedName FUNCTION_COUNT = QualifiedName.of("count");
 
-    public HavingVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                         Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {
+    public FunctionCallVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
+                               Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {
         super(mvSelectableColumnExtend, origColumnRefMap, mvDetail);
     }
 
@@ -59,7 +59,7 @@ public abstract class HavingVisitor extends WhereColumnRewriteVisitor {
      * @param columnArg 函数列作为参数
      * @return null if not possible
      */
-    protected Expression findAndRewriteSelectItemIfPossible(QualifiedName funName, QualifiedColumn columnArg) {
+    protected final Expression findAndRewriteSelectItemIfPossible(QualifiedName funName, QualifiedColumn columnArg) {
         SelectItem selectItem = findSelectItemInMvUseFunction(funName, columnArg);
         if (selectItem == null) {
             LOG.debug(String.format("mv中未找到 %s(%s)", funName.getSuffix(), columnArg));
@@ -81,7 +81,7 @@ public abstract class HavingVisitor extends WhereColumnRewriteVisitor {
      * @param columnArg 函数参数, columnArg
      * @return null if not found
      */
-    protected SelectItem findSelectItemInMvUseFunction(QualifiedName funName, QualifiedColumn columnArg) {
+    protected final SelectItem findSelectItemInMvUseFunction(QualifiedName funName, QualifiedColumn columnArg) {
         Select select = mvDetail.getMvQuerySpec().getSelect();
         List<SelectItem> selectItems = select.getSelectItems();
 

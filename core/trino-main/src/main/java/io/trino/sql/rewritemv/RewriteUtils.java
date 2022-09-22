@@ -92,9 +92,9 @@ public class RewriteUtils {
                     map.put(column1, selectItem);
                 }
             } else if (expression instanceof FunctionCall) {
-                LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
+                // LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
             } else {
-                LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
+                // LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
             }
         }
 

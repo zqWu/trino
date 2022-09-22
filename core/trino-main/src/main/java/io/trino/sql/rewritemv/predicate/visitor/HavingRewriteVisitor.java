@@ -23,7 +23,7 @@ import java.util.Map;
  * - column替换
  * - 函数支持
  */
-public class HavingRewriteVisitor extends HavingVisitor {
+public class HavingRewriteVisitor extends FunctionCallVisitor {
     private static final Logger LOG = Logger.get(HavingRewriteVisitor.class);
     private final boolean isMvGrouped;
 

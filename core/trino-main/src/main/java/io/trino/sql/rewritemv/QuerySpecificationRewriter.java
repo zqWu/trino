@@ -5,11 +5,13 @@ import io.jsonwebtoken.lang.Collections;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
+import io.trino.sql.rewritemv.predicate.visitor.HavingRewriteVisitor;
 import io.trino.sql.tree.AliasedRelation;
 import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.AstVisitor;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
+import io.trino.sql.tree.FunctionCall;
 import io.trino.sql.tree.Identifier;
 import io.trino.sql.tree.Node;
 import io.trino.sql.tree.QualifiedName;
@@ -25,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import static io.trino.sql.rewritemv.RewriteUtils.extractColumnReferenceMap;
 import static io.trino.sql.rewritemv.RewriteUtils.getNameLastPart;
@@ -86,7 +87,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
 
 
         // select
-        Select select = processSelect(node, mvDetail, groupByRewriter.getGroupColumns());
+        Select select = processSelect(node, mvDetail);
         if (!isMvFit()) {
             return node;
         }
@@ -99,13 +100,13 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
                 groupByRewriter.getResultGroupBy(),
                 groupByRewriter.getResultHaving(),
                 node.getWindows(),
-                node.getOrderBy(),
+                node.getOrderBy(), // TODO 改写字段名
                 node.getOffset(),
                 node.getLimit());
         return spec;
     }
 
-    private Select processSelect(QuerySpecification origSpec, MvDetail mvDetail, Set<QualifiedColumn> groupColumns) {
+    private Select processSelect(QuerySpecification origSpec, MvDetail mvDetail) {
         QuerySpecification mvSpec = mvDetail.getMvQuerySpec();
         Select origSelect = origSpec.getSelect();
         Select mvSelect = mvSpec.getSelect();
@@ -129,8 +130,22 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             Expression expression = origColumn.getExpression();
             QualifiedColumn qCol = columnRefMap.get(expression);
             if (qCol == null) {
-                // 不涉及字段, 直接加入. 如 select count(1), 这里的 count(1)
-                rewrite.add(origSelectItem);
+                if (expression instanceof FunctionCall) {
+                    // origColumn 是 function怎么处理
+                    FunctionCall functionCall = (FunctionCall) expression;
+                    boolean isMvGrouped = mvDetail.getMvQuerySpec().getGroupBy().isPresent();
+                    HavingRewriteVisitor visitor = new HavingRewriteVisitor(mvSelectableColumnExtend, mvDetail.getMvColumnRefMap(), mvDetail, isMvGrouped);
+                    Expression process = visitor.process(expression);
+                    if (process == null) {
+                        notFit(String.format("select fail: cannot process %s", expression));
+                        return origSelect;
+                    }
+                    SingleColumn after = new SingleColumn(process, origColumn.getAlias());
+                    rewrite.add(after);
+                } else {
+                    // 不涉及字段, 直接加入. 如 select 1 as foo
+                    rewrite.add(origSelectItem);
+                }
                 continue;
             }
 
