@@ -7,6 +7,7 @@ import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.FunctionCall;
 import io.trino.sql.tree.Identifier;
+import io.trino.sql.tree.Literal;
 import io.trino.sql.tree.QualifiedName;
 import io.trino.sql.tree.Select;
 import io.trino.sql.tree.SelectItem;
@@ -127,4 +128,41 @@ public abstract class HavingVisitor extends WhereColumnRewriteVisitor {
         return null;
     }
 
+    /**
+     * count 函数的处理
+     *
+     * @param node FunctionCall
+     * @param funName count
+     * @param enableCountAll 如果查找不到 count(colA), 是否允许 count(*) 替代
+     * @return 替换后的函数, null = fail to rewrite
+     */
+    protected Expression processFunctionCount(FunctionCall node, QualifiedName funName, boolean enableCountAll) {
+        List<Expression> arguments = node.getArguments();
+        QualifiedColumn columnArg = null;
+        if (arguments.size() == 0) { // case: count(*)
+            columnArg = null;
+        } else { // case: count(常数) or count(colA)
+            Expression arg1 = arguments.get(0);
+            if (arg1 instanceof Identifier || arg1 instanceof DereferenceExpression) {
+                columnArg = origColumnRefMap.get(arg1);
+                if (columnArg == null) {
+                    LOG.debug(String.format("mv中未找到需要的字段 %s", arg1));
+                    return null;
+                }
+            } else if (arg1 instanceof Literal) {
+                columnArg = null;
+            }
+        }
+
+        Expression expr = findAndRewriteSelectItemIfPossible(funName, columnArg);
+        if (expr == null && columnArg != null && enableCountAll) {
+            // 刚刚尝试的是 count(colA), 找不到再试一下 col(*)
+            expr = findAndRewriteSelectItemIfPossible(funName, null);
+        }
+
+        if (expr == null) {
+            LOG.debug(String.format("having 无法处理 %s(%s)", funName.getSuffix(), columnArg));
+        }
+        return expr;
+    }
 }
