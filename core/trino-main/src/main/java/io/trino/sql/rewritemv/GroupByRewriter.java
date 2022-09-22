@@ -5,7 +5,6 @@ import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
 import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
-import io.trino.sql.rewritemv.predicate.visitor.HavingRewriteVisitor;
 import io.trino.sql.rewritemv.predicate.visitor.HavingToWhereRewriteVisitor;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
@@ -259,8 +258,8 @@ public class GroupByRewriter {
         }
         Expression expr = PredicateUtil.logicAnd(compensation);
 
-        // TODO
-        throw new UnsupportedOperationException("TODO 需要尝试将这些 组装到 where中去");
+        // TODO 需要尝试将这些 组装到 where中去
+        resultWhere = Optional.of(expr);
     }
 
     private void differentGroupByRewriteHaving(PredicateAnalysis origAnalysis) {

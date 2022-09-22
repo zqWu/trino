@@ -14,6 +14,7 @@ import io.trino.sql.tree.Literal;
 import io.trino.sql.tree.LogicalExpression;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +36,10 @@ public class PredicateUtil {
         } else {
             return new LogicalExpression(LogicalExpression.Operator.AND, conditions);
         }
+    }
+
+    public static Expression logicAnd(Expression expr1, Expression expr2) {
+        return new LogicalExpression(LogicalExpression.Operator.AND, Arrays.asList(expr1, expr2));
     }
 
     /**

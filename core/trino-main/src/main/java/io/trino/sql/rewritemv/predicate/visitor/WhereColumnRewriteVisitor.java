@@ -31,13 +31,13 @@ import java.util.Map;
 public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     private static final Logger LOG = Logger.get(WhereColumnRewriteVisitor.class);
     protected final Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
-    protected final Map<Expression, QualifiedColumn> columnRefMap;
+    protected final Map<Expression, QualifiedColumn> origColumnRefMap;
     protected final MvDetail mvDetail;
 
     public WhereColumnRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                                     Map<Expression, QualifiedColumn> columnRefMap, MvDetail mvDetail) {
+                                     Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {
         this.mvSelectableColumnExtend = mvSelectableColumnExtend;
-        this.columnRefMap = columnRefMap;
+        this.origColumnRefMap = origColumnRefMap;
         this.mvDetail = mvDetail;
     }
 
@@ -47,7 +47,7 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
 
     @Override
     protected Expression visitIdentifier(Identifier node, Void context) {
-        QualifiedColumn col = columnRefMap.get(node);
+        QualifiedColumn col = origColumnRefMap.get(node);
         return getColumnReference(col);
     }
 

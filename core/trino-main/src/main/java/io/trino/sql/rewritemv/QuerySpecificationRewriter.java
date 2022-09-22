@@ -4,6 +4,7 @@ import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.rewritemv.predicate.EquivalentClass;
+import io.trino.sql.rewritemv.predicate.PredicateUtil;
 import io.trino.sql.tree.AliasedRelation;
 import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.AstVisitor;
@@ -73,6 +74,15 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         if (!isMvFit()) {
             return node;
         }
+        // group having 可能生成了 where结果, 合并到 where子句中
+        if (groupByRewriter.getResultWhere().isPresent()) {
+            Expression where2 = groupByRewriter.getResultWhere().get();
+            if (where.isPresent()) {
+                where = Optional.of(PredicateUtil.logicAnd(where.get(), where2));
+            } else {
+                where = groupByRewriter.getResultWhere();
+            }
+        }
 
 
         // select
@@ -84,7 +94,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         QuerySpecification spec = new QuerySpecification(
                 select,
                 Optional.of(relation),
-                where, // TODO 需要合并 groupByWriter中的 where
+                where,
                 groupByRewriter.getResultGroupBy(),
                 groupByRewriter.getResultHaving(),
                 node.getWindows(),

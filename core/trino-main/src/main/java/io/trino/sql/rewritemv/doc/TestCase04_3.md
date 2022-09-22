@@ -1,6 +1,5 @@
 # 解决 groupBy having
-- mv有 groupBy, query有 groupBy, 且 groupBy 能fit
-- mv没 having, query有 having
+- 前提: 相同groupBy, having => where
 
 # base_table & mv
 ```sql
@@ -11,7 +10,10 @@ SELECT 	mfgr mfgr2,
         max(retailprice) as max_price,
         min(retailprice) as min_price,
         sum(retailprice) as sum_price,
-        count(*) as _cnt
+        avg(retailprice) as avg_price,
+        count(*) as cnt_star,
+        count(999) as cnt_const,
+        count(size) as cnt_size
 from iceberg.kernel_db01.part04_3
 where size between 30 and 31
 GROUP BY mfgr, brand, size
@@ -25,18 +27,70 @@ select * from iceberg.kernel_db01.mv_part04_3;
 -- drop table iceberg.kernel_db01.part04_3;
 ```
 
-## 测试sql, 预期能够替换
+## 测试sql
 ```sql
--- 相同groupBy, 多having, 且 having字段直接存在
-SELECT mfgr, brand, size, count(*) as _cnt
+-- 相同groupBy, original 多了having max(colA), 且 having字段直接存在, 可以替换
+SELECT mfgr, brand, size
 from iceberg.kernel_db01.part04_3
 where size=30
 GROUP BY mfgr, brand, size
-having max(retailprice) > 1600
+having max(retailprice) > 1620
 
 -- 这个是上面 手动 rewrite的结果
 select mfgr2, brand, s0
 from iceberg.kernel_db01.mv_part04_3
-where s0=30 and max_price > 1600
-  
+where s0=30 and max_price > 1620
+
+
+-- max/min
+SELECT mfgr, brand, size
+from iceberg.kernel_db01.part04_3
+where size=30
+GROUP BY mfgr, brand, size
+having max(retailprice) < 2620 and min(retailprice) > 1400
+-- 这个是上面 手动 rewrite的结果
+select mfgr2, brand, s0
+from iceberg.kernel_db01.mv_part04_3
+where s0=30 and max_price < 2620 and min_price > 1400
+
+
+
+-- max/min/count
+SELECT mfgr, brand, size
+from iceberg.kernel_db01.part04_3
+where size=30
+GROUP BY mfgr, brand, size
+having
+    max(retailprice) < 2620
+   and min(retailprice) > 1200
+   and count(*) > 1
+   and count(1) > 1
+   and count(size) > 1
+-- 手动改写
+select mfgr2, brand, s0
+from iceberg.kernel_db01.mv_part04_3
+where s0=30 
+  and max_price < 2620 and min_price > 1200
+  and cnt_star > 1 and cnt_const > 1 and cnt_size > 1
+
+
+-- max/min/count/avg
+SELECT mfgr, brand, size
+from iceberg.kernel_db01.part04_3
+where size=30
+GROUP BY mfgr, brand, size
+having
+    max(retailprice) < 2600
+   and min(retailprice) > 1200
+   and count(*) > 1
+   and avg(retailprice) > 1400
+
+-- 手动改写
+select mfgr2, brand, s0
+from iceberg.kernel_db01.mv_part04_3
+where s0=30
+  and max_price < 2600
+  and min_price > 1200
+  and cnt_star > 1
+  and avg_price > 1400
 ```
