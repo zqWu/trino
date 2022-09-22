@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class HavingVisitor extends WhereColumnRewriteVisitor {
+public abstract class HavingVisitor extends WhereColumnRewriteVisitor {
     protected static final Logger LOG = Logger.get(HavingVisitor.class);
     protected static final List<String> SUPPORTED_FUNCTION = Arrays.asList("avg", "count", "max", "min", "sum");
     protected static final QualifiedName FUNCTION_SUM = QualifiedName.of("sum");
@@ -27,6 +27,28 @@ public class HavingVisitor extends WhereColumnRewriteVisitor {
                          Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {
         super(mvSelectableColumnExtend, origColumnRefMap, mvDetail);
     }
+
+    @Override
+    protected Expression visitFunctionCall(FunctionCall node, Void context) {
+        // mv自身进行了 groupBy, 对 having 需要做处理
+        QualifiedName funName = node.getName();
+        String name = funName.getSuffix();
+
+        if (!SUPPORTED_FUNCTION.contains(name)) {
+            LOG.debug("不支持的函数:" + name);
+            return null;
+        }
+
+        Expression after = doVisitFunctionCall(node, context);
+        if (after != null) {
+            LOG.debug(String.format("having rewrite: %s ===> %s", node, after));
+        } else {
+            LOG.debug(String.format("having rewrite: fail %s", node));
+        }
+        return after;
+    }
+
+    protected abstract Expression doVisitFunctionCall(FunctionCall node, Void context);
 
     /**
      * 查找并改写 mv中使用 function(arg)的 selectItem.

@@ -78,7 +78,7 @@ public class RewriteUtils {
         List<SelectItem> selectItems = select.getSelectItems();
         for (SelectItem selectItem : selectItems) {
             if (!(selectItem instanceof SingleColumn)) {
-                LOG.debug("TODO: ignore non SingleColumn, selectItem=[%s]", selectItem.getClass().getName());
+                // LOG.debug("ignore non SingleColumn, selectItem=[%s]", selectItem.getClass().getName());
                 continue;
             }
 

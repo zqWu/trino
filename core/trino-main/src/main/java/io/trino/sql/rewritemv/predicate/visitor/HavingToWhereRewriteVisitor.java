@@ -30,14 +30,8 @@ public class HavingToWhereRewriteVisitor extends HavingVisitor {
     }
 
     @Override
-    protected Expression visitFunctionCall(FunctionCall node, Void context) {
-        QualifiedName funName = node.getName();
-        String name = funName.getSuffix();
-
-        if (!SUPPORTED_FUNCTION.contains(name)) {
-            return null;
-        }
-        switch (name) {
+    protected Expression doVisitFunctionCall(FunctionCall node, Void context) {
+        switch (node.getName().getSuffix()) {
             case "max":
             case "min":
             case "sum":

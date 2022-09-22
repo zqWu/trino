@@ -12,6 +12,7 @@ import io.trino.sql.tree.Literal;
 import io.trino.sql.tree.QualifiedName;
 import io.trino.sql.tree.SelectItem;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,20 +36,14 @@ public class HavingRewriteVisitor extends HavingVisitor {
     }
 
     @Override
-    protected Expression visitFunctionCall(FunctionCall node, Void context) {
+    protected Expression doVisitFunctionCall(FunctionCall node, Void context) {
+        // mv自身进行了 groupBy, 对 having 需要做处理
         if (!isMvGrouped) {
-            // TODO: 如果mv自身没有进行groupBy, 那这些 having, 稍加改写就可以直接放出去
+            // "mv自身没有进行groupBy, 那这些 having, 稍加改写就可以直接放出去"
             return onMvNotGroupBy(node, context);
         }
 
-        // mv自身进行了 groupBy, 对 having 需要做处理
-        QualifiedName funName = node.getName();
-        String name = funName.getSuffix();
-
-        if (!SUPPORTED_FUNCTION.contains(name)) {
-            return null;
-        }
-        switch (name) {
+        switch (node.getName().getSuffix()) {
             // min/max/sum 符合这种特性
             // min(min(colA)) = min(colA)
             // sum(sum(colA)) = sum(colA)
@@ -77,8 +72,22 @@ public class HavingRewriteVisitor extends HavingVisitor {
         }
     }
 
+    /**
+     * mv 没有groupBy时, 只需要替换 functionCall的参数即可
+     */
     private Expression onMvNotGroupBy(FunctionCall node, Void context) {
-        throw new UnsupportedOperationException("TODO");
+        QualifiedName funName = node.getName();
+        List<Expression> origArgs = node.getArguments();
+        List<Expression> rewriteArgs = new ArrayList<>(origArgs.size());
+        for (Expression before : origArgs) {
+            Expression after = process(before, context);
+            if (after != null) { // 替换失败
+                rewriteArgs.add(after);
+            } else {
+                return null;
+            }
+        }
+        return new FunctionCall(funName, rewriteArgs);
     }
 
     /**

@@ -1,14 +1,14 @@
 package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
-import io.trino.sql.rewritemv.predicate.visitor.WhereColumnRewriteVisitor;
-import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
 import io.trino.sql.rewritemv.predicate.Predicate;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.rewritemv.predicate.PredicateEqual;
 import io.trino.sql.rewritemv.predicate.PredicateOther;
 import io.trino.sql.rewritemv.predicate.PredicateRange;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
+import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
+import io.trino.sql.rewritemv.predicate.visitor.WhereColumnRewriteVisitor;
 import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
@@ -123,6 +123,8 @@ public class WhereRewriter {
             return null;
         }
         conditions.addAll(list3);
+
+        conditions.forEach(e -> LOG.debug(String.format("where write: compensation %s", e)));
 
         return PredicateUtil.logicAnd(conditions);
     }

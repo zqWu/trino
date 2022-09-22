@@ -59,7 +59,7 @@ public class GroupByRewriter {
     }
 
     /**
-     * 目前暂不支持 having 过滤
+     * 入口
      */
     public void process() {
         Optional<GroupBy> origGroupOpt = origSpec.getGroupBy();
@@ -179,6 +179,7 @@ public class GroupByRewriter {
             SimpleGroupBy simpleGroupBy = new SimpleGroupBy(Arrays.asList(colInMv));
             groupingElements.add(simpleGroupBy);
             groupColumns.add(new QualifiedColumn(col.getTable(), colInMv.getField().get().getValue()));
+            LOG.debug(String.format("group by rewrite: %s ===> %s", col, colInMv));
         }
 
         GroupBy groupBy = new GroupBy(isDistinct, groupingElements);
