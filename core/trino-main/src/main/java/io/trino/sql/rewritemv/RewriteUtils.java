@@ -6,21 +6,12 @@ import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.Field;
 import io.trino.sql.analyzer.ResolvedField;
 import io.trino.sql.rewritemv.predicate.EquivalentClass;
-import io.trino.sql.rewritemv.predicate.PredicateEqual;
-import io.trino.sql.rewritemv.predicate.PredicateOther;
-import io.trino.sql.rewritemv.predicate.PredicateRange;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.tree.AliasedRelation;
-import io.trino.sql.tree.AstVisitor;
-import io.trino.sql.tree.BetweenPredicate;
-import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
+import io.trino.sql.tree.FunctionCall;
 import io.trino.sql.tree.Identifier;
-import io.trino.sql.tree.IsNotNullPredicate;
-import io.trino.sql.tree.IsNullPredicate;
-import io.trino.sql.tree.Literal;
-import io.trino.sql.tree.LogicalExpression;
 import io.trino.sql.tree.NodeRef;
 import io.trino.sql.tree.QuerySpecification;
 import io.trino.sql.tree.Relation;
@@ -93,12 +84,15 @@ public class RewriteUtils {
 
             SingleColumn column = (SingleColumn) selectItem;
             Expression expression = column.getExpression();
-            if (expression instanceof Identifier) {
+            if (expression instanceof Identifier || expression instanceof DereferenceExpression) {
+                // TODO Dereference,
                 // select col1, col2, 这里的 col1, col2就是 Identifier expression
                 QualifiedColumn column1 = columnRefMap.get(expression);
                 if (column1 != null) {
                     map.put(column1, selectItem);
                 }
+            } else if (expression instanceof FunctionCall) {
+                LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
             } else {
                 LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
             }
@@ -188,119 +182,6 @@ public class RewriteUtils {
 
         Identifier identifier = column.getAlias().orElseGet(() -> (Identifier) column.getExpression());
         return new DereferenceExpression(table, identifier);
-    }
-
-
-    /**
-     * flatten where to atomic predicate
-     */
-    public static PredicateAnalysis analyzePredicate(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
-        PredicateAnalysis whereAnalysis = new PredicateAnalysis();
-        WhereVisitor visitor = new WhereVisitor(map);
-        visitor.process(whereExpr, whereAnalysis);
-        whereAnalysis.build();
-
-        return whereAnalysis;
-    }
-
-    private static class WhereVisitor extends AstVisitor<Void, PredicateAnalysis> {
-        private final Map<Expression, QualifiedColumn> refMap;
-
-        public WhereVisitor(Map<Expression, QualifiedColumn> refMap) {
-            this.refMap = refMap;
-        }
-
-        @Override
-        protected Void visitComparisonExpression(ComparisonExpression node, PredicateAnalysis context) {
-            // TODO 对于比较, 需要区分是 colA op colB, 还是 colA op value
-            // colA=3这样的形式
-            Expression left = node.getLeft();
-            Expression right = node.getRight();
-            ComparisonExpression.Operator op = node.getOperator();
-            boolean equalOp = ComparisonExpression.Operator.EQUAL == op;
-
-            // c.s.tableA.colX = 1, colA<1 , 1 >= c.s.tableA.colX,  1=colA
-            if ((left instanceof DereferenceExpression || left instanceof Identifier) && right instanceof Literal) {
-                if (PredicateRange.validOperator(op) && PredicateRange.validLiteral((Literal) right)) {
-                    QualifiedColumn column1 = refMap.get(left);
-                    context.addPredicate(new PredicateRange(node, column1, (Literal) right, op));
-                } else {
-                    context.addPredicate(new PredicateOther(node));
-                }
-            } else if ((right instanceof DereferenceExpression || right instanceof Identifier) && left instanceof Literal) {
-                if (PredicateRange.validOperator(op) && PredicateRange.validLiteral((Literal) left)) {
-                    QualifiedColumn column1 = refMap.get(right);
-                    context.addPredicate(new PredicateRange(node, column1, (Literal) left, op));
-                } else {
-                    context.addPredicate(new PredicateOther(node));
-                }
-            }
-
-            // colA=colB, colB=c.s.tableA.colY,  c.s.tableA.colX=colB, c.s.tableA.colX=c.s.tableA.colY
-            else if (equalOp
-                    && (left instanceof Identifier || left instanceof DereferenceExpression)
-                    && (right instanceof Identifier || right instanceof DereferenceExpression)
-            ) {
-                QualifiedColumn column1 = refMap.get(left);
-                QualifiedColumn column2 = refMap.get(right);
-                context.addPredicate(new PredicateEqual(node, column1, column2));
-            }
-
-            // other situation
-            else {
-                context.addPredicate(new PredicateOther(node));
-            }
-
-            return null;
-        }
-
-        @Override
-        protected Void visitBetweenPredicate(BetweenPredicate node, PredicateAnalysis context) {
-            Expression value = node.getValue();
-            Expression min = node.getMin();
-            Expression max = node.getMax();
-            if ((value instanceof DereferenceExpression || value instanceof Identifier)
-                    && min instanceof Literal
-                    && max instanceof Literal) {
-
-                QualifiedColumn column = refMap.get(value);
-                context.addPredicate(PredicateRange.fromRange(node, column, (Literal) min, (Literal) max));
-            } else {
-                context.addPredicate(new PredicateOther(node));
-            }
-
-            return null;
-        }
-
-        @Override
-        protected Void visitLogicalExpression(LogicalExpression node, PredicateAnalysis context) {
-            if (LogicalExpression.Operator.AND == node.getOperator()) {
-                for (Expression expr : node.getTerms()) {
-                    process(expr, context);
-                }
-            } else {
-                context.notSupport("unsupported: logicExpression OR:" + node);
-            }
-            return null;
-        }
-
-        @Override
-        protected Void visitIsNotNullPredicate(IsNotNullPredicate node, PredicateAnalysis context) {
-            context.addPredicate(new PredicateOther(node));
-            return null;
-        }
-
-        @Override
-        protected Void visitIsNullPredicate(IsNullPredicate node, PredicateAnalysis context) {
-            context.addPredicate(new PredicateOther(node));
-            return null;
-        }
-
-        @Override
-        protected Void visitExpression(Expression node, PredicateAnalysis context) {
-            context.addPredicate(new PredicateOther(node));
-            return null;
-        }
     }
 
 }

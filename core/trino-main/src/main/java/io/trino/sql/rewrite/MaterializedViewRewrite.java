@@ -46,7 +46,7 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
             QueryRewriter rewriter = new QueryRewriter(original);
             result = (Statement) rewriter.process(original.getStatement(), entry);
             if (rewriter.isMvFit()) {
-                LOG.info("=====> !!! found mv fit sql [%s] !!!", entry.getName());
+                LOG.info("=====> !!! found mv fit sql [%s] !!!", entry.getMvName());
                 return result;
             }
         }

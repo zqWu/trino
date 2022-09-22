@@ -46,13 +46,13 @@ public class QueryRewriter extends AstVisitor<Node, MvDetail> {
         QuerySpecification newSpec = (QuerySpecification) process(origSpec, mvDetail);
 
         // orderBy limit offset
-        if (mvDetail.getQuery().getOrderBy().isPresent()) {
+        if (mvDetail.getMvQuery().getOrderBy().isPresent()) {
             notFit("not support: mv has [orderBy]");
         }
-        if (mvDetail.getQuery().getOffset().isPresent()) {
+        if (mvDetail.getMvQuery().getOffset().isPresent()) {
             notFit("not support: mv has [offset]");
         }
-        if (mvDetail.getQuery().getLimit().isPresent()) {
+        if (mvDetail.getMvQuery().getLimit().isPresent()) {
             notFit("not support: mv has [limit]");
         }
 
@@ -69,7 +69,7 @@ public class QueryRewriter extends AstVisitor<Node, MvDetail> {
             return with;
         }
 
-        Optional<With> o2 = mvDetail.getQuery().getWith();
+        Optional<With> o2 = mvDetail.getMvQuery().getWith();
         if (o2.isPresent()) {
             notFit("not support: mv has [With] clause");
         }

@@ -68,7 +68,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         }
 
         // group having
-        GroupByRewriter groupByRewriter = new GroupByRewriter(this, mvDetail);
+        GroupByRewriter groupByRewriter = new GroupByRewriter(this, mvDetail, where.isEmpty());
         groupByRewriter.process();
         if (!isMvFit()) {
             return node;
@@ -86,7 +86,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
                 Optional.of(relation),
                 where, // TODO 需要合并 groupByWriter中的 where
                 groupByRewriter.getResultGroupBy(),
-                groupByRewriter.getHaving(),
+                groupByRewriter.getResultHaving(),
                 node.getWindows(),
                 node.getOrderBy(),
                 node.getOffset(),
@@ -95,7 +95,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
     }
 
     private Select processSelect(QuerySpecification origSpec, MvDetail mvDetail, Set<QualifiedColumn> groupColumns) {
-        QuerySpecification mvSpec = mvDetail.getQuerySpecification();
+        QuerySpecification mvSpec = mvDetail.getMvQuerySpec();
         Select origSelect = origSpec.getSelect();
         Select mvSelect = mvSpec.getSelect();
 
@@ -165,7 +165,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             node = ((AliasedRelation) node).getRelation();
         }
 
-        Relation mvRelation = mvDetail.getQuerySpecification().getFrom().get();
+        Relation mvRelation = mvDetail.getMvQuerySpec().getFrom().get();
         if (mvRelation instanceof AliasedRelation) {
             mvRelation = ((AliasedRelation) mvRelation).getRelation();
         }
@@ -173,13 +173,13 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         // simple equal
         if (Objects.equals(node, mvRelation)) {
             // 直接相同的情况下, 使用 mv
-            QualifiedObjectName mvName = mvDetail.getName();
+            QualifiedObjectName mvName = mvDetail.getMvName();
             QualifiedName name = QualifiedName.of(mvName.getCatalogName(), mvName.getSchemaName(), mvName.getObjectName());
             Table mvTable = new Table(name);
             return mvTable;
         }
         notFit(String.format("not match : table, require=%s, provided %s by %s",
-                node, mvRelation, mvDetail.getName()));
+                node, mvRelation, mvDetail.getMvName()));
         return node;
     }
 

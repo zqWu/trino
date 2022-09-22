@@ -227,8 +227,8 @@ public class PredicateRange extends Predicate {
         this.left = left;
         if (EQUAL == op) {
             this.equal = new PredicateRangeBound(EQUAL, right);
-            this.lower = PredicateRangeBound.UNBOUND;
-            this.upper = PredicateRangeBound.UNBOUND;
+            this.lower = new PredicateRangeBound(GREATER_THAN_OR_EQUAL, right);
+            this.upper = new PredicateRangeBound(LESS_THAN_OR_EQUAL, right);
         } else if (GREATER_THAN == op
                 || GREATER_THAN_OR_EQUAL == op) {
             this.lower = new PredicateRangeBound(op, right);

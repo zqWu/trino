@@ -14,7 +14,7 @@ as
 
 ## mv定义
 ```sql
-create or replace materialized view iceberg.kernel_db01.mv_part_03_2 as
+create or replace materialized view iceberg.kernel_db01.mv_part03_2 as
 SELECT mfgr mfgr2, brand, type type2, size
 from iceberg.kernel_db01.part03_2
 where 1=1
@@ -22,9 +22,11 @@ where 1=1
   and size>20
 GROUP BY mfgr, brand, type, size;
 
-refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part_03_2;
+refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part03_2;
 
-select * from iceberg.kernel_db01.mv_part_03_2;
+-- select * from iceberg.kernel_db01.mv_part03_2;
+-- drop materialized view iceberg.kernel_db01.mv_part03_2 ;
+-- drop table iceberg.kernel_db01.part03_2;
 ```
 
 ## 测试sql, 预期能够替换

@@ -1,25 +1,17 @@
 package io.trino.sql.rewritemv.predicate;
 
-import io.airlift.log.Logger;
-import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.rewritemv.QualifiedColumn;
-import io.trino.sql.rewritemv.RewriteUtils;
-import io.trino.sql.tree.ArithmeticBinaryExpression;
-import io.trino.sql.tree.ArithmeticUnaryExpression;
+import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
 import io.trino.sql.tree.AstVisitor;
+import io.trino.sql.tree.BetweenPredicate;
 import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.DereferenceExpression;
-import io.trino.sql.tree.ExistsPredicate;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.Identifier;
-import io.trino.sql.tree.InListExpression;
-import io.trino.sql.tree.InPredicate;
 import io.trino.sql.tree.IsNotNullPredicate;
 import io.trino.sql.tree.IsNullPredicate;
-import io.trino.sql.tree.LikePredicate;
 import io.trino.sql.tree.Literal;
-import io.trino.sql.tree.NotExpression;
-import io.trino.sql.tree.SelectItem;
+import io.trino.sql.tree.LogicalExpression;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +23,139 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PredicateUtil {
+
+    /**
+     * 多个 condition 使用 and进行组装
+     */
+    public static Expression logicAnd(List<Expression> conditions) {
+        if (conditions == null || conditions.size() == 0) {
+            return null;
+        } else if (conditions.size() == 1) {
+            return conditions.get(0);
+        } else {
+            return new LogicalExpression(LogicalExpression.Operator.AND, conditions);
+        }
+    }
+
+    /**
+     * flatten where to atomic predicate
+     */
+    public static PredicateAnalysis analyzePredicate(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
+        if (whereExpr == null) {
+            return PredicateAnalysis.EMPTY_PREDICATE;
+        }
+
+        PredicateAnalysis whereAnalysis = new PredicateAnalysis();
+        PredicateVisitor visitor = new PredicateVisitor(map);
+        visitor.process(whereExpr, whereAnalysis);
+        whereAnalysis.build();
+
+        return whereAnalysis;
+    }
+
+    /**
+     * 将一个 大的 predicate 分解为多个 {@link Predicate}
+     */
+    private static class PredicateVisitor extends AstVisitor<Void, PredicateAnalysis> {
+        private final Map<Expression, QualifiedColumn> refMap;
+
+        public PredicateVisitor(Map<Expression, QualifiedColumn> refMap) {
+            this.refMap = refMap;
+        }
+
+        @Override
+        protected Void visitComparisonExpression(ComparisonExpression node, PredicateAnalysis context) {
+            // TODO 对于比较, 需要区分是 colA op colB, 还是 colA op value
+            // colA=3这样的形式
+            Expression left = node.getLeft();
+            Expression right = node.getRight();
+            ComparisonExpression.Operator op = node.getOperator();
+            boolean equalOp = ComparisonExpression.Operator.EQUAL == op;
+
+            // c.s.tableA.colX = 1, colA<1 , 1 >= c.s.tableA.colX,  1=colA
+            if ((left instanceof DereferenceExpression || left instanceof Identifier) && right instanceof Literal) {
+                if (PredicateRange.validOperator(op) && PredicateRange.validLiteral((Literal) right)) {
+                    QualifiedColumn column1 = refMap.get(left);
+                    context.addPredicate(new PredicateRange(node, column1, (Literal) right, op));
+                } else {
+                    context.addPredicate(new PredicateOther(node));
+                }
+            } else if ((right instanceof DereferenceExpression || right instanceof Identifier) && left instanceof Literal) {
+                if (PredicateRange.validOperator(op) && PredicateRange.validLiteral((Literal) left)) {
+                    QualifiedColumn column1 = refMap.get(right);
+                    context.addPredicate(new PredicateRange(node, column1, (Literal) left, op));
+                } else {
+                    context.addPredicate(new PredicateOther(node));
+                }
+            }
+
+            // colA=colB, colB=c.s.tableA.colY,  c.s.tableA.colX=colB, c.s.tableA.colX=c.s.tableA.colY
+            else if (equalOp
+                    && (left instanceof Identifier || left instanceof DereferenceExpression)
+                    && (right instanceof Identifier || right instanceof DereferenceExpression)
+            ) {
+                QualifiedColumn column1 = refMap.get(left);
+                QualifiedColumn column2 = refMap.get(right);
+                context.addPredicate(new PredicateEqual(node, column1, column2));
+            }
+
+            // other situation
+            else {
+                context.addPredicate(new PredicateOther(node));
+            }
+
+            return null;
+        }
+
+        @Override
+        protected Void visitBetweenPredicate(BetweenPredicate node, PredicateAnalysis context) {
+            Expression value = node.getValue();
+            Expression min = node.getMin();
+            Expression max = node.getMax();
+            if ((value instanceof DereferenceExpression || value instanceof Identifier)
+                    && min instanceof Literal
+                    && max instanceof Literal) {
+
+                QualifiedColumn column = refMap.get(value);
+                context.addPredicate(PredicateRange.fromRange(node, column, (Literal) min, (Literal) max));
+            } else {
+                context.addPredicate(new PredicateOther(node));
+            }
+
+            return null;
+        }
+
+        @Override
+        protected Void visitLogicalExpression(LogicalExpression node, PredicateAnalysis context) {
+            if (LogicalExpression.Operator.AND == node.getOperator()) {
+                for (Expression expr : node.getTerms()) {
+                    process(expr, context);
+                }
+            } else {
+                context.notSupport("unsupported: logicExpression OR:" + node);
+            }
+            return null;
+        }
+
+        @Override
+        protected Void visitIsNotNullPredicate(IsNotNullPredicate node, PredicateAnalysis context) {
+            context.addPredicate(new PredicateOther(node));
+            return null;
+        }
+
+        @Override
+        protected Void visitIsNullPredicate(IsNullPredicate node, PredicateAnalysis context) {
+            context.addPredicate(new PredicateOther(node));
+            return null;
+        }
+
+        @Override
+        protected Void visitExpression(Expression node, PredicateAnalysis context) {
+            context.addPredicate(new PredicateOther(node));
+            return null;
+        }
+    }
+
     /**
      * range 条件处理:
      * (1) every condition in loose, must also in tight
@@ -198,19 +323,16 @@ public class PredicateUtil {
             List<PredicateOther> queryOtherList,
             List<PredicateOther> mvOtherList,
             List<Expression> compensation,
+            ExpressionRewriter rewriter) {
 
-            Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-            Map<Expression, QualifiedColumn> columnRefMap,
-            MvDetail mvDetail
-    ) {
         List<Expression> queryOther = new ArrayList<>();
-        String err1 = replaceColumnInCondition(queryOtherList, queryOther, mvSelectableColumnExtend, columnRefMap, mvDetail);
+        String err1 = replaceColumnInCondition(queryOtherList, queryOther, rewriter);
         if (err1 != null) {
             return err1;
         }
 
         List<Expression> mvOther = new ArrayList<>();
-        String err2 = replaceColumnInCondition(mvOtherList, mvOther, mvSelectableColumnExtend, columnRefMap, mvDetail);
+        String err2 = replaceColumnInCondition(mvOtherList, mvOther, rewriter);
         if (err2 != null) {
             return err2;
         }
@@ -226,12 +348,7 @@ public class PredicateUtil {
     }
 
     private static String replaceColumnInCondition(
-            List<PredicateOther> other,
-            List<Expression> replaced,
-            Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-            Map<Expression, QualifiedColumn> columnRefMap,
-            MvDetail mvDetail
-    ) {
+            List<PredicateOther> other, List<Expression> replaced, ExpressionRewriter rewriter) {
         if (other == null || other.size() == 0) {
             return null;
         }
@@ -242,169 +359,14 @@ public class PredicateUtil {
             }
 
             Expression before = predicate.getExpr();
-            ColumnRewriteVisitor rewriter = new ColumnRewriteVisitor(mvSelectableColumnExtend, columnRefMap, mvDetail);
             Expression after = rewriter.process(before);
             if (after != null) {
                 replaced.add(after);
             } else {
-                return ("predicate: could not handle other predicate" + before);
+                return "predicate: could not handle other predicate" + before;
             }
         }
 
         return null;
-    }
-
-    /**
-     * 改写 Expression的 Visitor类
-     * 目前是 column替换
-     */
-    private static class ColumnRewriteVisitor extends AstVisitor<Expression, Void> {
-        private static final Logger LOG = Logger.get(ColumnRewriteVisitor.class);
-        private final Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
-        private final Map<Expression, QualifiedColumn> columnRefMap;
-        private final MvDetail mvDetail;
-
-        public ColumnRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                                    Map<Expression, QualifiedColumn> columnRefMap, MvDetail mvDetail) {
-            this.mvSelectableColumnExtend = mvSelectableColumnExtend;
-            this.columnRefMap = columnRefMap;
-            this.mvDetail = mvDetail;
-        }
-
-        private DereferenceExpression getColumnReference(QualifiedColumn col) {
-            return RewriteUtils.findColumnInMv(col, mvSelectableColumnExtend, mvDetail.getTableNameExpression());
-        }
-
-        private void __notSupport(Expression node) {
-            LOG.warn("not support:" + node);
-        }
-
-        @Override
-        protected Expression visitIdentifier(Identifier node, Void context) {
-            QualifiedColumn col = columnRefMap.get(node);
-            return getColumnReference(col);
-        }
-
-        @Override
-        protected Expression visitLiteral(Literal node, Void context) {
-            return node;
-        }
-
-        @Override
-        protected Expression visitInListExpression(InListExpression node, Void context) {
-            // 目前仅处理  in (val1, val2) 这样的形式, 如果 in (select ... ) 则不处理
-            List<Expression> values = node.getValues();
-            boolean allLiteral = values.stream().allMatch(v -> (v instanceof Literal));
-            if (allLiteral) {
-                return node;
-            }
-
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitLikePredicate(LikePredicate node, Void context) {
-            Expression expr = process(node.getValue());
-            if (expr == null) {
-                return null;
-            }
-            return new LikePredicate(expr, node.getPattern(), node.getEscape());
-        }
-
-        @Override
-        protected Expression visitIsNotNullPredicate(IsNotNullPredicate node, Void context) {
-            Expression expr = process(node.getValue());
-            if (expr == null) {
-                return null;
-            }
-            return new IsNotNullPredicate(expr);
-        }
-
-        @Override
-        protected Expression visitIsNullPredicate(IsNullPredicate node, Void context) {
-            Expression expr = process(node.getValue());
-            if (expr == null) {
-                return null;
-            }
-            return new IsNullPredicate(expr);
-        }
-
-        @Override
-        protected Expression visitExists(ExistsPredicate node, Void context) {
-            LOG.warn("not support:" + node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitInPredicate(InPredicate node, Void context) {
-
-            Expression newValue = process(node.getValue());
-            InListExpression inListExpr = (InListExpression) process(node.getValueList());
-            if (newValue != null && inListExpr != null) {
-                return new InPredicate(newValue, inListExpr);
-            }
-
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitNotExpression(NotExpression node, Void context) {
-            Expression value = node.getValue();
-            Expression newExpr = process(value);
-            if (newExpr == null) {
-                return null;
-            }
-            return new NotExpression(newExpr);
-        }
-
-        @Override
-        protected Expression visitComparisonExpression(ComparisonExpression node, Void context) {
-            ComparisonExpression.Operator op = node.getOperator();
-
-            Expression newLeft = process(node.getLeft());
-            Expression newRight = process(node.getRight());
-            if (newLeft != null && newRight != null) {
-                return new ComparisonExpression(op, newLeft, newRight);
-            }
-
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitArithmeticBinary(ArithmeticBinaryExpression node, Void context) {
-            ArithmeticBinaryExpression.Operator op = node.getOperator();
-            if (node.getLeft() instanceof Literal && node.getRight() instanceof Literal) {
-                return node;
-            }
-            Expression newLeft = process(node.getLeft());
-            Expression newRight = process(node.getRight());
-
-            if (newLeft != null && newRight != null) {
-                return new ArithmeticBinaryExpression(op, newLeft, newRight);
-            }
-            __notSupport(node);
-            return null;
-        }
-
-        @Override
-        protected Expression visitArithmeticUnary(ArithmeticUnaryExpression node, Void context) {
-            __notSupport(node);
-            return null;
-        }
-
-        /**
-         * 有些表达式 不属于上面 几种, 目前暂不支持
-         */
-        @Override
-        protected Expression visitExpression(Expression node, Void context) {
-            // TODO
-            __notSupport(node);
-            return null;
-        }
-
-
     }
 }

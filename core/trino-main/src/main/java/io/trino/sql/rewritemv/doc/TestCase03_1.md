@@ -1,22 +1,26 @@
+# 解决 where 中等价问题2
+
+## 测试点
+- where
+    - equivalent class (size, size_cp)
+    - range predicate
+    - other predicate
+
+
 # base_table
 ```sql
-DROP TABLE if exists iceberg.kernel_db01.part02;
+DROP TABLE if exists iceberg.kernel_db01.part03_1;
 
-CREATE TABLE iceberg.kernel_db01.part02
+CREATE TABLE iceberg.kernel_db01.part03_1
 as 
     select partkey, mfgr, brand, type, size s0, size s1, size s2, size s3, size s4, size s5, size s6, size s7
     from tpch.tiny.part;
-```
 
 
-# 解决 where 中等价问题2
-
-
-## mv定义
-```sql
-create or replace materialized view iceberg.kernel_db01.mv_part_03 as
+-- mv定义
+create or replace materialized view iceberg.kernel_db01.mv_part03_1 as
 SELECT mfgr mfgr2, brand, type type2, s0, s1, s3, s5
-from iceberg.kernel_db01.part02
+from iceberg.kernel_db01.part03_1
 where 1=1
   and mfgr='Manufacturer#1'
   and s1=s2 and s1=s7
@@ -24,16 +28,18 @@ where 1=1
   and s5=s6
 GROUP BY mfgr, brand, type, s0, s1, s3, s5;
 
-refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part_03;
+refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part03_1;
 
-select * from iceberg.kernel_db01.mv_part_03;
+-- select * from iceberg.kernel_db01.mv_part03_1;
+-- drop materialized view iceberg.kernel_db01.mv_part03_1 ;
+-- drop table iceberg.kernel_db01.part03_1;
 ```
 
 ## 测试sql, 预期能够替换
 ```sql
 -- sql1
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
-from iceberg.kernel_db01.part02
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
@@ -44,8 +50,8 @@ GROUP BY mfgr, brand, type, s2
 -- s2 ===> s1等等
 
 -- sql2, 在sql1的基础上增加了 and s0>10 and s0<40
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
-from iceberg.kernel_db01.part02
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
@@ -55,8 +61,8 @@ where 2=2
 GROUP BY mfgr, brand, type, s2
 
 -- sql3, and s0>=10 and s0<40 ===> and s0 between 10 and 40
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
-from iceberg.kernel_db01.part02
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
@@ -69,8 +75,8 @@ GROUP BY mfgr, brand, type, s2
 -- and type like 'LARGE%'
 -- and brand like 'Brand%'
 -- and brand not in ('haha')
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
-from iceberg.kernel_db01.part02
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
@@ -84,8 +90,8 @@ GROUP BY mfgr, brand, type, s2
 
 
 -- sql5, 在 sql4 的基础上  and (brand='Brand#14' and (s2=18 and 1+1=2))
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
-from iceberg.kernel_db01.part02
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
@@ -100,8 +106,8 @@ GROUP BY mfgr, brand, type, s2
 
 
 -- s2=18 ===> s2+1=19
-SELECT iceberg.kernel_db01.part02.mfgr, brand, type, s2
-from iceberg.kernel_db01.part02
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
 where 2=2
   and mfgr=mfgr
   and 'Manufacturer#1'=mfgr
@@ -115,8 +121,3 @@ where 2=2
 GROUP BY mfgr, brand, type, s2
 ```
 
-## 测试点
-- where
-  - equivalent class (size, size_cp)
-  - range predicate
-  - other predicate

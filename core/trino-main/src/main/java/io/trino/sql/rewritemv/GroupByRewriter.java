@@ -2,6 +2,11 @@ package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
 import io.trino.sql.rewritemv.predicate.EquivalentClass;
+import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
+import io.trino.sql.rewritemv.predicate.PredicateUtil;
+import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
+import io.trino.sql.rewritemv.predicate.visitor.HavingRewriteVisitor;
+import io.trino.sql.rewritemv.predicate.visitor.HavingToWhereRewriteVisitor;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.GroupBy;
@@ -23,39 +28,41 @@ import java.util.Set;
  * A. 如果 original 没有groupBy 而mv group了, 则无法改写
  * <p>
  * B. original的groupBy字段, 必须是 mv group的子集
- * - 如果逻辑上完全相等, 则 groupBy 可以去掉, 把 having条件改成where 条件
- * - 如果是真子集, 则保留 groupBy, 并做必要 字段名修改
+ * mv 不支持 having
+ * - 支持 having, 无法保证正确性
  */
 public class GroupByRewriter {
     private static final Logger LOG = Logger.get(GroupByRewriter.class);
     private final MvDetail mvDetail;
     private final QueryRewriter queryRewriter;
     private final QuerySpecificationRewriter specRewriter;
-    private final QuerySpecification originalSpec;
+    private final QuerySpecification origSpec;
     private final QuerySpecification mvSpec;
+    private final boolean sameWhere;
     private Optional<GroupBy> resultGroupBy;    // 保留下来的 groupBy
-    private Optional<Expression> having;        // 保留下来的 having
-    private Optional<Expression> where;         // 如果没有 having, 则改为 where条件
+    private Optional<Expression> resultHaving;        // 保留下来的 having
+    private Optional<Expression> resultWhere;         // 如果没有 having, 则改为 where条件
     private Set<QualifiedColumn> groupColumns; // 保存
 
-    public GroupByRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail) {
+    public GroupByRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail, boolean sameWhere) {
         this.mvDetail = mvDetail;
         this.specRewriter = specRewriter;
         this.queryRewriter = specRewriter.getQueryRewriter();
+        this.sameWhere = sameWhere;
 
-        originalSpec = queryRewriter.getSpec();
-        mvSpec = mvDetail.getQuerySpecification();
+        origSpec = queryRewriter.getSpec();
+        mvSpec = mvDetail.getMvQuerySpec();
 
         resultGroupBy = Optional.empty();
-        having = Optional.empty();
-        where = Optional.empty();
+        resultHaving = Optional.empty();
+        resultWhere = Optional.empty();
     }
 
     /**
      * 目前暂不支持 having 过滤
      */
     public void process() {
-        Optional<GroupBy> origGroupOpt = originalSpec.getGroupBy();
+        Optional<GroupBy> origGroupOpt = origSpec.getGroupBy();
         Optional<GroupBy> mvGroupOpt = mvSpec.getGroupBy();
 
         // 处理了 origGroup=空 的情况
@@ -116,7 +123,7 @@ public class GroupByRewriter {
             return;
         }
 
-        List<QualifiedColumn> mvGroupByColumn = extractGroupColumn(mvList, mvDetail.getColumnRefMap());
+        List<QualifiedColumn> mvGroupByColumn = extractGroupColumn(mvList, mvDetail.getMvColumnRefMap());
         if (mvGroupByColumn.size() != mvList.size()) {
             notFit("not match : groupBy : contains non column group");
             return;
@@ -178,8 +185,85 @@ public class GroupByRewriter {
         resultGroupBy = Optional.of(groupBy);
     }
 
+    /**
+     * mv的定义中不允许有 having, 因为这回导致正确性问题, 除非 where / groupBy / having 都一致
+     * 目前 having条件中不支持以下条件, 因为这些条件放在 where中更合理, 没有看到在 having中使用这些条件的先例
+     * - colA = colB
+     * - colA > 4
+     */
     private void processHaving() {
-        // TODO 处理 having
+        Optional<Expression> mvHavingOpt = mvSpec.getHaving();
+        Optional<Expression> origHavingOpt = origSpec.getHaving();
+        if (origHavingOpt.isEmpty()) {
+            if (mvHavingOpt.isPresent()) {
+                notFit("having: mv has having clause, query not have");
+            }
+            return;
+        }
+        // now original has having clause
+
+
+        if (mvHavingOpt.isPresent()) {
+            if (sameWhere && resultGroupBy.isPresent()) {
+                // case: same where/groupBy
+                // TODO if having same, then fit, else not fit
+                throw new UnsupportedOperationException("TODO if having same, then fit, else not fit");
+            } else {
+                notFit("having: mv has having clause, but where/groupBy clause not the same");
+            }
+            return;
+        }
+
+        // now original has having, mv no having
+        Expression origHaving = origHavingOpt.get();
+        PredicateAnalysis origAnalysis = PredicateUtil.analyzePredicate(origHaving, specRewriter.getColumnRefMap());
+        if (!origAnalysis.isSupport()) {
+            notFit("having not support:" + origAnalysis.getReason());
+            return;
+        }
+        if (origAnalysis.getEcList().size() != 0) {
+            notFit("having not support: equal condition in having");
+            return;
+        }
+        if (origAnalysis.getRangeList().size() != 0) {
+            notFit("having not support: range condition in having");
+            return;
+        }
+
+        // 仅处理 PredicateOther
+        boolean sameGroupBy = resultGroupBy.isEmpty();
+        if (sameGroupBy) {
+            sameGroupByRewriteHaving(origAnalysis);
+        } else {
+            differentGroupByRewriteHaving(origAnalysis);
+        }
+    }
+
+    /**
+     * sameGroupBy 导致没有了 having clause
+     * 尝试将这些 original having clause ====> where clause 中
+     */
+    private void sameGroupByRewriteHaving(PredicateAnalysis origHaving) {
+        ExpressionRewriter rewriter = new HavingToWhereRewriteVisitor(
+                specRewriter.getMvSelectableColumnExtend(), specRewriter.getColumnRefMap(), mvDetail);
+
+        List<Expression> compensation = new ArrayList<>();
+        String errMsg = PredicateUtil.processPredicateOther(
+                origHaving.getOtherList(), null, compensation, rewriter);
+        if (errMsg != null) {
+            notFit("having: " + errMsg);
+            return;
+        }
+        if (compensation.size() == 0) {
+            return;
+        }
+        Expression expr = PredicateUtil.logicAnd(compensation);
+
+        // TODO
+        throw new UnsupportedOperationException("TODO 需要尝试将这些 组装到 where中去");
+    }
+
+    private void differentGroupByRewriteHaving(PredicateAnalysis origAnalysis) {
 
     }
 
@@ -229,11 +313,11 @@ public class GroupByRewriter {
         return resultGroupBy;
     }
 
-    public Optional<Expression> getHaving() {
-        return having;
+    public Optional<Expression> getResultHaving() {
+        return resultHaving;
     }
 
-    public Optional<Expression> getWhere() {
-        return where;
+    public Optional<Expression> getResultWhere() {
+        return resultWhere;
     }
 }

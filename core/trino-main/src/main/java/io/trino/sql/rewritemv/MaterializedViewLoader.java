@@ -15,6 +15,7 @@ import io.trino.sql.analyzer.QueryType;
 import io.trino.sql.analyzer.StatementAnalyzer;
 import io.trino.sql.tree.Statement;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,17 @@ public class MaterializedViewLoader {
     private static final Logger LOG = Logger.get(MaterializedViewLoader.class);
     private static boolean sync = false;
     private static Map<QualifiedObjectName, MvDetail> mvCache = new HashMap<>();
+
+    private static List<QualifiedObjectName> skipList = Arrays.asList(
+            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part01_1"),
+            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part02_1"),
+            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_1"),
+            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_2"),
+            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_1"),
+            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_2"),
+            // new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_3"),
+            new QualifiedObjectName("iceberg", "kernel_db01", "na")
+    );
 
     public static Map<QualifiedObjectName, MvDetail> getMv(Session session) {
         loadMaterializedViewOnlyOnce(session);
@@ -51,6 +63,10 @@ public class MaterializedViewLoader {
             Map<QualifiedObjectName, ViewInfo> materializedViews = metadata.getMaterializedViews(session, prefix);
 
             for (QualifiedObjectName name : materializedViews.keySet()) {
+                if (skipList.contains(name)) {
+                    continue;
+                }
+
                 if (!mvCache.containsKey(name)) {
                     addToCache(session, name, materializedViews.get(name));
                 }

@@ -4,6 +4,7 @@ import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.ViewInfo;
 import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
+import io.trino.sql.rewritemv.predicate.PredicateUtil;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
 import io.trino.sql.tree.Identifier;
@@ -17,86 +18,86 @@ import java.util.List;
 import java.util.Map;
 
 public class MvDetail {
-    private final QualifiedObjectName name; // mv name
-    private final Statement statement;
+    private final QualifiedObjectName mvName; // mv name
+    private final Statement mvStatement;
     private final ViewInfo viewInfo;
-    private final Analysis analysis;
-    private final Query query;
-    private final QuerySpecification querySpecification;
-    private final Map<Expression, QualifiedColumn> columnRefMap;
-    private final Map<QualifiedColumn, SelectItem> selectableColumn;
-    private final List<Table> baseTable;
+    private final Analysis mvAnalysis;
+    private final Query mvQuery;
+    private final QuerySpecification mvQuerySpec;
+    private final Map<Expression, QualifiedColumn> mvColumnRefMap;
+    private final Map<QualifiedColumn, SelectItem> mvSelectableColumn;
+    private final List<Table> mvBaseTable;
     private final DereferenceExpression tableNameExpression; // mv的基本表达式, 因为大量用到
-    private final PredicateAnalysis wherePredicate;
+    private final PredicateAnalysis mvWherePredicate;
 
     public MvDetail(QualifiedObjectName mvName, Statement statement, ViewInfo viewInfo, Analysis analysis) {
-        this.name = mvName;
-        this.statement = statement;
+        this.mvName = mvName;
+        this.mvStatement = statement;
         this.viewInfo = viewInfo;
-        this.analysis = analysis;
+        this.mvAnalysis = analysis;
 
 
         // ======== 一些简单的变量提取出来, 便于使用
-        this.query = (Query) analysis.getStatement();
-        this.querySpecification = (QuerySpecification) this.query.getQueryBody();
-        baseTable = RewriteUtils.extractBaseTable(querySpecification.getFrom().get());
+        this.mvQuery = (Query) analysis.getStatement();
+        this.mvQuerySpec = (QuerySpecification) this.mvQuery.getQueryBody();
+        mvBaseTable = RewriteUtils.extractBaseTable(mvQuerySpec.getFrom().get());
         DereferenceExpression catalogAndSchema = new DereferenceExpression(
                 new Identifier(mvName.getCatalogName()), new Identifier(mvName.getSchemaName()));
         tableNameExpression = new DereferenceExpression(catalogAndSchema, new Identifier(mvName.getObjectName()));
 
         // ======== 提取 column reference map Map<Expression, QualifiedColumn>
-        columnRefMap = RewriteUtils.extractColumnReferenceMap(analysis);
+        mvColumnRefMap = RewriteUtils.extractColumnReferenceMap(analysis);
 
         // ======== 分析 where
-        if (querySpecification.getWhere().isPresent()) {
-            this.wherePredicate = RewriteUtils.analyzePredicate(querySpecification.getWhere().get(), columnRefMap);
+        if (mvQuerySpec.getWhere().isPresent()) {
+            this.mvWherePredicate = PredicateUtil.analyzePredicate(mvQuerySpec.getWhere().get(), mvColumnRefMap);
         } else {
-            this.wherePredicate = PredicateAnalysis.EMPTY_PREDICATE;
+            this.mvWherePredicate = PredicateAnalysis.EMPTY_PREDICATE;
         }
         // ======== 提取 selectableColumn, Map<QualifiedColumn, SelectItem>
-        selectableColumn = RewriteUtils.extractSelectSingleField(querySpecification, columnRefMap, wherePredicate);
+        mvSelectableColumn = RewriteUtils.extractSelectSingleField(mvQuerySpec, mvColumnRefMap, mvWherePredicate);
     }
 
     // ======== get
 
-    public PredicateAnalysis getWherePredicate() {
-        return wherePredicate;
+    public PredicateAnalysis getMvWherePredicate() {
+        return mvWherePredicate;
     }
 
-    public QualifiedObjectName getName() {
-        return name;
+    public QualifiedObjectName getMvName() {
+        return mvName;
     }
 
-    public Statement getStatement() {
-        return statement;
+    public Statement getMvStatement() {
+        return mvStatement;
     }
 
     public ViewInfo getViewInfo() {
         return viewInfo;
     }
 
-    public Analysis getAnalysis() {
-        return analysis;
+    public Analysis getMvAnalysis() {
+        return mvAnalysis;
     }
 
-    public Query getQuery() {
-        return query;
+    public Query getMvQuery() {
+        return mvQuery;
     }
 
-    public QuerySpecification getQuerySpecification() {
-        return querySpecification;
+    public QuerySpecification getMvQuerySpec() {
+        return mvQuerySpec;
     }
 
-    public Map<Expression, QualifiedColumn> getColumnRefMap() {
-        return columnRefMap;
+    public Map<Expression, QualifiedColumn> getMvColumnRefMap() {
+        return mvColumnRefMap;
     }
 
-    public Map<QualifiedColumn, SelectItem> getSelectableColumn() {
-        return selectableColumn;
+    public Map<QualifiedColumn, SelectItem> getMvSelectableColumn() {
+        return mvSelectableColumn;
     }
 
-    public List<Table> getBaseTable() {
-        return baseTable;
+    public List<Table> getMvBaseTable() {
+        return mvBaseTable;
     }
 
     public DereferenceExpression getTableNameExpression() {

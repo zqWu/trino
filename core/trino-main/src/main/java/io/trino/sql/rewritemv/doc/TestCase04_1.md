@@ -13,7 +13,7 @@ as
 
 ## mv定义
 ```sql
-create or replace materialized view iceberg.kernel_db01.mv_part_04_1 as
+create or replace materialized view iceberg.kernel_db01.mv_part04_1 as
 SELECT mfgr mfgr2, brand, s1
 from iceberg.kernel_db01.part04_1
 where 1=1
@@ -21,9 +21,11 @@ where 1=1
   and s0=s2
 ;
 
-refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part_04_1;
+refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part04_1;
 
-select * from iceberg.kernel_db01.mv_part_04_1;
+-- select * from iceberg.kernel_db01.mv_part04_1;
+-- drop materialized view iceberg.kernel_db01.mv_part04_1 ;
+-- drop table iceberg.kernel_db01.part04_1;
 ```
 
 ## 测试sql, 预期能够替换

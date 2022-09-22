@@ -1,6 +1,8 @@
 package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
+import io.trino.sql.rewritemv.predicate.visitor.WhereColumnRewriteVisitor;
+import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
 import io.trino.sql.rewritemv.predicate.Predicate;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.rewritemv.predicate.PredicateEqual;
@@ -10,7 +12,6 @@ import io.trino.sql.rewritemv.predicate.PredicateUtil;
 import io.trino.sql.tree.ComparisonExpression;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
-import io.trino.sql.tree.LogicalExpression;
 import io.trino.sql.tree.SelectItem;
 
 import java.util.ArrayList;
@@ -27,9 +28,7 @@ public class WhereRewriter {
     private static final Logger LOG = Logger.get(WhereRewriter.class);
     private final QueryRewriter queryRewriter;
     private final QuerySpecificationRewriter specRewriter;
-    private final Map<Expression, QualifiedColumn> columnRefMap;
     private final MvDetail mvDetail;
-    private final PredicateAnalysis mvPredicateAnalysis;
     private PredicateAnalysis wherePredicate;
 
     // 在ec加持下, mv可选字段. 注意: 这个对象不是 mv持有
@@ -39,9 +38,6 @@ public class WhereRewriter {
         this.specRewriter = specRewriter;
         this.queryRewriter = specRewriter.getQueryRewriter();
         this.mvDetail = mvDetail;
-        this.columnRefMap = specRewriter.getColumnRefMap();
-
-        mvPredicateAnalysis = mvDetail.getWherePredicate();
     }
 
     /**
@@ -49,12 +45,12 @@ public class WhereRewriter {
      */
     public Expression process() {
         Optional<Expression> optWhere = queryRewriter.getSpec().getWhere();
-        Optional<Expression> mvWhere = mvDetail.getQuerySpecification().getWhere();
+        Optional<Expression> mvWhere = mvDetail.getMvQuerySpec().getWhere();
 
         // case: query where=null
         if (optWhere.isEmpty()) {
             if (mvWhere.isPresent()) {
-                if (mvPredicateAnalysis.hasEffectivePredicate()) {
+                if (mvDetail.getMvWherePredicate().hasEffectivePredicate()) {
                     // mv包含有效的 where过滤, 则无法匹配
                     notFit("where(original) = empty,  where(mv) != empty");
                 }
@@ -62,12 +58,12 @@ public class WhereRewriter {
             return null;
         }
 
-        if (!mvPredicateAnalysis.isSupport()) {
-            notFit("where: mv not support, reason=" + mvPredicateAnalysis.getReason());
+        if (!mvDetail.getMvWherePredicate().isSupport()) {
+            notFit("where: mv not support, reason=" + mvDetail.getMvWherePredicate().getReason());
             return null;
         }
 
-        wherePredicate = RewriteUtils.analyzePredicate(optWhere.get(), specRewriter.getColumnRefMap());
+        wherePredicate = PredicateUtil.analyzePredicate(optWhere.get(), specRewriter.getColumnRefMap());
         if (!wherePredicate.isSupport()) {
             notFit("where: original not support, reason=" + wherePredicate.getReason());
         }
@@ -86,7 +82,7 @@ public class WhereRewriter {
         List<Predicate> compensation = new ArrayList<>();
         String errProcessEqual = PredicateUtil.processPredicateEqual(
                 wherePredicate.getEcList(),
-                mvDetail.getWherePredicate().getEcList(),
+                mvDetail.getMvWherePredicate().getEcList(),
                 compensation
         );
         if (errProcessEqual != null) {
@@ -95,12 +91,12 @@ public class WhereRewriter {
         }
 
         // !!! ec处理完毕后, 就可以更新在mv中的 selectable字段
-        mvSelectableColumnExtend = RewriteUtils.extendSelectableColumnByEc(mvDetail.getSelectableColumn(),
+        mvSelectableColumnExtend = RewriteUtils.extendSelectableColumnByEc(mvDetail.getMvSelectableColumn(),
                 wherePredicate.getEcList());
 
         List<Predicate> list2 = new ArrayList<>();
         String errProcessRange = PredicateUtil.rangePredicateCompare(wherePredicate.getRangeList(),
-                mvDetail.getWherePredicate().getRangeList(),
+                mvDetail.getMvWherePredicate().getRangeList(),
                 wherePredicate.getEcList(),
                 list2);
         if (errProcessRange != null) {
@@ -114,26 +110,17 @@ public class WhereRewriter {
 
         // predicateOther的处理
         List<Expression> list3 = new ArrayList<>();
-        String errProcessOther = PredicateUtil.processPredicateOther(wherePredicate.getOtherList(),
-                mvDetail.getWherePredicate().getOtherList(),
-                list3,
-                mvSelectableColumnExtend,
-                columnRefMap,
-                mvDetail
-        );
+        ExpressionRewriter rewriter = new WhereColumnRewriteVisitor(
+                mvSelectableColumnExtend, specRewriter.getColumnRefMap(), mvDetail);
+        String errProcessOther = PredicateUtil.processPredicateOther(
+                wherePredicate.getOtherList(), mvDetail.getMvWherePredicate().getOtherList(), list3, rewriter);
         if (errProcessOther != null) {
             notFit("where: " + errProcessOther);
             return null;
         }
         conditions.addAll(list3);
 
-        if (conditions == null || conditions.size() == 0) {
-            return null;
-        } else if (conditions.size() == 1) {
-            return conditions.get(0);
-        } else {
-            return new LogicalExpression(LogicalExpression.Operator.AND, conditions);
-        }
+        return PredicateUtil.logicAnd(conditions);
     }
 
     private List<Expression> parseAtomicWhere(List<Predicate> compensation) {
@@ -144,8 +131,8 @@ public class WhereRewriter {
                 PredicateEqual pe = (PredicateEqual) predicate;
                 QualifiedColumn left = pe.getLeft();
                 QualifiedColumn right = pe.getRight();
-                DereferenceExpression mvLeft = RewriteUtils.findColumnInMv(left, mvDetail.getSelectableColumn(), mvDetail.getTableNameExpression());
-                DereferenceExpression mvRight = RewriteUtils.findColumnInMv(right, mvDetail.getSelectableColumn(), mvDetail.getTableNameExpression());
+                DereferenceExpression mvLeft = RewriteUtils.findColumnInMv(left, mvDetail.getMvSelectableColumn(), mvDetail.getTableNameExpression());
+                DereferenceExpression mvRight = RewriteUtils.findColumnInMv(right, mvDetail.getMvSelectableColumn(), mvDetail.getTableNameExpression());
                 if (mvLeft == null) {
                     notFit("where: cannot find column in mv:" + left);
                     return list;

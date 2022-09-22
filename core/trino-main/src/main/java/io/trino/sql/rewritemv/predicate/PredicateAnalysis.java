@@ -3,6 +3,7 @@ package io.trino.sql.rewritemv.predicate;
 import io.trino.sql.rewritemv.QualifiedColumn;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,7 +13,7 @@ public class PredicateAnalysis {
     private final List<PredicateEqual> equalList = new ArrayList<>();
     private final List<PredicateRange> rangeList = new ArrayList<>();
     private final List<PredicateOther> otherList = new ArrayList<>();
-    private List<EquivalentClass> ecList;
+    private List<EquivalentClass> ecList = Collections.emptyList();
 
     // 不要对 EMPTY_PREDICATE 进行任何写操作
     public static final PredicateAnalysis EMPTY_PREDICATE = new PredicateAnalysis();
