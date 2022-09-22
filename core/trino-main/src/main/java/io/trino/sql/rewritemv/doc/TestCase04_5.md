@@ -1,5 +1,5 @@
 # 解决 groupBy having
-- 前提: 相同groupBy, having => where
+- 前提: 不同groupBy, having => having, 函数支持 max/min/sum/avg/count
 
 # base_table & mv
 ```sql
