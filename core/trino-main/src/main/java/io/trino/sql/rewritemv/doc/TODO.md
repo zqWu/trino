@@ -78,11 +78,17 @@ where s0=s3 and s1=s4
 | 4_2  | has          | has       | mv_having更少     | 添加 having/where |
 | 4_3  | has          | has       | mv_groupBy更多    | not fit         |
 
+# 函数
+- max/min/sum
+- count
+- avg
+
+# 性能统计
+
 # join的处理
 
 # with子句
 
-# 函数
 
 # 重构为 AstVisitor
 
