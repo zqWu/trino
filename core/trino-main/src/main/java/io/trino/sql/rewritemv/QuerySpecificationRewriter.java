@@ -91,6 +91,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             return node;
         }
 
+        LOG.debug("组装修改后的 QuerySpecification ");
         QuerySpecification spec = new QuerySpecification(
                 select,
                 Optional.of(relation),
@@ -157,8 +158,10 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         WhereRewriter whereRewriter = new WhereRewriter(this, mvDetail);
         Expression expression = whereRewriter.process();
         if (isMvFit()) {
-            ecList = whereRewriter.getWherePredicate().getEcList();
-            mvSelectableColumnExtend = whereRewriter.getMvSelectableColumnExtend();
+            if (whereRewriter.getWherePredicate() != null) {
+                ecList = whereRewriter.getWherePredicate().getEcList();
+                mvSelectableColumnExtend = whereRewriter.getMvSelectableColumnExtend();
+            }
         }
 
         if (expression == null) {

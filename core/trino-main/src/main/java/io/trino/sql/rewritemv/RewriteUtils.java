@@ -169,7 +169,8 @@ public class RewriteUtils {
         return Collections.unmodifiableList(list);
     }
 
-    public static DereferenceExpression findColumnInMv(QualifiedColumn col, Map<QualifiedColumn, SelectItem> colMap, DereferenceExpression table) {
+    public static DereferenceExpression findColumnInMv(QualifiedColumn col,
+                                                       Map<QualifiedColumn, SelectItem> colMap, DereferenceExpression table) {
         SelectItem selectItem = colMap.get(col);
         if (selectItem == null) {
             return null;
@@ -180,7 +181,25 @@ public class RewriteUtils {
         }
         SingleColumn column = (SingleColumn) selectItem;
 
-        Identifier identifier = column.getAlias().orElseGet(() -> (Identifier) column.getExpression());
+        // column 有如下几种形式 (select 后面的 形式)
+        // select colA ================================ identifier =======================> 得到 [c.s.t].colA
+        // select colA as colX ======================== identifier + alias ===============> 得到 [c.s.t].colX
+        // select catalog.schema.table.colA =========== DereferenceExpression ============> 得到 [c.s.t].colA
+        // select catalog.schema.table.colA as colX === DereferenceExpression  + alias ===> 得到 [c.s.t].colX
+
+
+        Identifier identifier = null;
+        if (column.getAlias().isPresent()) {
+            identifier = column.getAlias().get();
+        } else {
+            Expression columnExpression = column.getExpression();
+            if (columnExpression instanceof DereferenceExpression) {
+                identifier = ((DereferenceExpression) columnExpression).getField().get();
+            } else {
+                identifier = (Identifier) columnExpression;
+            }
+        }
+
         return new DereferenceExpression(table, identifier);
     }
 

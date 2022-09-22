@@ -4,15 +4,14 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 --server 127.0.0.1:8080 \
 --debug \
 --execute "
-SELECT mfgr, brand, size
-from iceberg.kernel_db01.part04_3
+SELECT mfgr, brand
+from iceberg.kernel_db01.part04_4
 where size=30
-GROUP BY mfgr, brand, size
+GROUP BY mfgr, brand
 having
-    max(retailprice) < 2600
+    max(retailprice) < 1620
    and min(retailprice) > 1200
-   and count(*) > 1
-   and avg(retailprice) > 1400
+   and sum(retailprice) > 1300
 ;
 "
 

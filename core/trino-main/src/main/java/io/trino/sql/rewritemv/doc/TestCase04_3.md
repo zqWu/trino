@@ -3,6 +3,15 @@
 
 # base_table & mv
 ```sql
+DROP TABLE if exists iceberg.kernel_db01.part04_3;
+
+CREATE TABLE iceberg.kernel_db01.part04_3
+as
+select partkey, mfgr, brand, type, size, retailprice
+    from tpch.tiny.part;
+
+
+-- mv
 create or replace materialized view iceberg.kernel_db01.mv_part04_3 as
 SELECT 	mfgr mfgr2,
         iceberg.kernel_db01.part04_3.brand,
@@ -93,4 +102,12 @@ where s0=30
   and min_price > 1200
   and cnt_star > 1
   and avg_price > 1400
+
+
+-- max(size), 预期无法改写, 因为mv 没有 select max(size)
+SELECT mfgr, brand, size
+from iceberg.kernel_db01.part04_3
+where size between 30 and 31
+GROUP BY mfgr, brand, size
+having max(size) > 30
 ```

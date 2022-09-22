@@ -5,6 +5,7 @@ import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.rewritemv.predicate.PredicateAnalysis;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
 import io.trino.sql.rewritemv.predicate.visitor.ExpressionRewriter;
+import io.trino.sql.rewritemv.predicate.visitor.HavingRewriteVisitor;
 import io.trino.sql.rewritemv.predicate.visitor.HavingToWhereRewriteVisitor;
 import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
@@ -258,12 +259,29 @@ public class GroupByRewriter {
         }
         Expression expr = PredicateUtil.logicAnd(compensation);
 
-        // TODO 需要尝试将这些 组装到 where中去
+        // 将这些 组装到 where中去
         resultWhere = Optional.of(expr);
     }
 
-    private void differentGroupByRewriteHaving(PredicateAnalysis origAnalysis) {
+    private void differentGroupByRewriteHaving(PredicateAnalysis origHaving) {
+        ExpressionRewriter rewriter = new HavingRewriteVisitor(
+                specRewriter.getMvSelectableColumnExtend(), specRewriter.getColumnRefMap(), mvDetail);
 
+        List<Expression> compensation = new ArrayList<>();
+        String errMsg = PredicateUtil.processPredicateOther(
+                origHaving.getOtherList(), null, compensation, rewriter);
+
+        if (errMsg != null) {
+            notFit("having: " + errMsg);
+            return;
+        }
+        if (compensation.size() == 0) {
+            return;
+        }
+        Expression expr = PredicateUtil.logicAnd(compensation);
+
+        // 将这些 组装到 where中去
+        resultHaving = Optional.of(expr);
     }
 
     /**

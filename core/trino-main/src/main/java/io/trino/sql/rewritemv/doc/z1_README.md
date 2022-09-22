@@ -19,3 +19,9 @@ private Analysis mvRewrite() {
 ```
 解决: 只能在 SqlQueryExecution之前进行 mv rewrite, 因此放到 rewrite阶段
 可以自己analyze 原statement, 进行处理
+
+# 代码统计
+```bash
+cd ~/ws/trino/core/trino-main/src/main/java/io/trino/sql/rewritemv
+find . -type f -name "*.java" | xargs wc -l | awk '{print $1}' | datamash sum 1
+```
