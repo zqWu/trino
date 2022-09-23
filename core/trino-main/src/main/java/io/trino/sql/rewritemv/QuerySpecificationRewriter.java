@@ -39,7 +39,7 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
     private final QueryRewriter queryRewriter;
     private final Map<Expression, QualifiedColumn> columnRefMap;
 
-    // ecList & mvSelectableColumnExpand 是 select处理完毕后得到的产物
+    // ecList & mvSelectableColumnExpand 是 处理完where后得到的产物
     private List<EquivalentClass> ecList;
     private Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
 
@@ -50,6 +50,8 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
 
     @Override
     protected Node visitQuerySpecification(QuerySpecification node, MvDetail mvDetail) {
+        // TODO: fast check before rewrite
+
         if (!isMvFit()) {
             return node;
         }

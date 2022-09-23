@@ -40,13 +40,23 @@ public class MaterializedViewLoader {
             new QualifiedObjectName("iceberg", "kernel_db01", "na")
     );
 
+    public static void invalidate() {
+        if (sync) {
+            LOG.debug("invalidate mv cache");
+            mvCache.clear();
+            sync = false;
+        }
+    }
+
     public static Map<QualifiedObjectName, MvDetail> getMv(Session session) {
         loadMaterializedViewOnlyOnce(session);
         return mvCache;
     }
 
     /**
-     * TODO this function should execute once on startup. how to do this
+     * TODO
+     * 1 how to execute once on startup. how to do this
+     * 2 how to invalidate cache
      * get all materialized view definition and their Analysis
      */
     private static void loadMaterializedViewOnlyOnce(Session session) {
@@ -54,6 +64,7 @@ public class MaterializedViewLoader {
             return;
         }
 
+        long begin = System.currentTimeMillis();
         sync = true;
         Metadata metadata = MaterializedViewRewriteHelper.getInstance().getMetadata();
         List<CatalogInfo> catalogInfoList = metadata.listCatalogs(session);
@@ -72,6 +83,8 @@ public class MaterializedViewLoader {
                 }
             }
         }
+        long cost = System.currentTimeMillis() - begin;
+        LOG.debug(String.format("load mv time cost=[%s]ms", cost));
     }
 
     private static synchronized void addToCache(Session session, QualifiedObjectName name, ViewInfo viewInfo) {

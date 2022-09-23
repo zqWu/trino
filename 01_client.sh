@@ -4,6 +4,8 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 --server 127.0.0.1:8080 \
 --debug \
 --execute "
+set session query_rewrite_with_materialized_view_status = 1;
+
 SELECT mfgr, brand, size, avg(retailprice) as avg_price
 from iceberg.kernel_db01.part04_6
 where size between 30 and 32

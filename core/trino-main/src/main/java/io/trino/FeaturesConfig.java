@@ -101,7 +101,7 @@ public class FeaturesConfig
 
     private boolean hideInaccessibleColumns;
     private boolean forceSpillingJoin;
-    private boolean enableQueryRewriteWithMaterializedView = false;
+    private int queryRewriteWithMaterializedViewStatus = 0;
 
     public enum DataIntegrityVerification
     {
@@ -493,14 +493,14 @@ public class FeaturesConfig
         return this;
     }
 
-    @Config("enable-query-rewrite-with-materialized-view")
-    @ConfigDescription("enable query rewrite using pre-defined materialized view")
-    public FeaturesConfig setEnableQueryRewriteWithMaterializedView(boolean enabled) {
-        this.enableQueryRewriteWithMaterializedView = enabled;
+    @Config("query-rewrite-with-materialized-view-status")
+    @ConfigDescription("query rewrite with materialized view status, 0=disable, 1=enable, 2=refresh")
+    public FeaturesConfig setQueryRewriteWithMaterializedViewStatus(int status) {
+        this.queryRewriteWithMaterializedViewStatus = status;
         return this;
     }
 
-    public Boolean isEnableQueryRewriteWithMaterializedView() {
-        return enableQueryRewriteWithMaterializedView;
+    public int getQueryRewriteWithMaterializedViewStatus() {
+        return queryRewriteWithMaterializedViewStatus;
     }
 }

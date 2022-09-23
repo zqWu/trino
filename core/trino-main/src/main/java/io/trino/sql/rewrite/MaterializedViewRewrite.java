@@ -35,8 +35,12 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
                              Map<NodeRef<Parameter>, Expression> parameterLookup,
                              WarningCollector warningCollector) {
 
-        if (!SystemSessionProperties.isEnableQueryRewriteWithMaterializedView(session)) {
+        int status = SystemSessionProperties.queryRewriteWithMaterializedViewStatus(session);
+        if (status == 0) {
             return statement;
+        }
+        if (status == 2) {
+            MaterializedViewLoader.invalidate();
         }
 
         // only apply to query, ignore else (eg. insert/ update / delete / ddl ...)
@@ -47,18 +51,27 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
         MaterializedViewRewriteHelper helper = MaterializedViewRewriteHelper.getInstance();
 
         // analyze 现在这个
-        Analysis originalAnalysis = new Analysis(statement, new HashMap<>(), QueryType.OTHERS); // TODO 异常
-        StatementAnalyzer analyzer = helper.getStatementAnalyzerFactory()
-                .createStatementAnalyzer(originalAnalysis, session, WarningCollector.NOOP, CorrelationSupport.ALLOWED);
-        analyzer.analyze(statement, Optional.empty());
+        try {
+            Analysis originalAnalysis = new Analysis(statement, new HashMap<>(), QueryType.OTHERS);
+            StatementAnalyzer analyzer = helper.getStatementAnalyzerFactory()
+                    .createStatementAnalyzer(originalAnalysis, session, WarningCollector.NOOP, CorrelationSupport.ALLOWED);
+            analyzer.analyze(statement, Optional.empty());
 
-        Statement resultStatement = rewrite(session, originalAnalysis);
-        return resultStatement;
+            Statement resultStatement = rewrite(session, originalAnalysis);
+            return resultStatement;
+        } catch (Exception ex) {
+            // if any exception happens, use original statement
+            // original query has some error
+            return statement;
+        }
     }
-    // statement.queryBody {QuerySpecification}
 
 
     private static Statement rewrite(Session session, Analysis original) {
+        if (original.getStatement() == null) {
+            return null;
+        }
+
         Statement result = original.getStatement();
         for (MvDetail entry : MaterializedViewLoader.getMv(session).values()) {
             QueryRewriter rewriter = new QueryRewriter(original);
