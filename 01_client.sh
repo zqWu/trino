@@ -9,8 +9,9 @@ set session query_rewrite_with_materialized_view_status = 1;
 SELECT mfgr, brand, size, avg(retailprice) as avg_price
 from iceberg.kernel_db01.part04_6
 
-where size>=30 and -size<= -32
-and size in (select distinct size from iceberg.kernel_db01.part04_6)
+where iceberg.kernel_db01.part04_6.size>=30 and -size<= -32
+-- and size in (select distinct size from iceberg.kernel_db01.part04_6)
+and size in (31,32,33)
 
 GROUP BY mfgr, brand,size
 having max(retailprice) < 1890
