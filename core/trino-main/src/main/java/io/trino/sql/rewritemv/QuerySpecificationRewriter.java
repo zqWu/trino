@@ -6,6 +6,7 @@ import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
 import io.trino.sql.rewritemv.predicate.visitor.HavingRewriteVisitor;
+import io.trino.sql.rewritemv.predicate.visitor.SelectRewriteVisitor;
 import io.trino.sql.tree.AliasedRelation;
 import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.AstVisitor;
@@ -118,57 +119,14 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             return origSelect;
         }
 
-        List<SelectItem> rewrite = new ArrayList<>();
-        for (SelectItem origSelectItem : origSelect.getSelectItems()) {
-            if (origSelectItem instanceof AllColumns) {
-                notFit("not support: original select has AllColumns(like *)");
-                continue;
-            }
-
-            // orig: select t1.a, ...
-            // mv:   select t1.a as t1a, ....
-            // 修改:  select mv.t1a as a .... from mv
-            SingleColumn origColumn = (SingleColumn) origSelectItem;
-            Expression expression = origColumn.getExpression();
-            QualifiedColumn qCol = columnRefMap.get(expression);
-            if (qCol == null) {
-                if (expression instanceof FunctionCall) {
-                    // origColumn 是 function怎么处理
-                    FunctionCall functionCall = (FunctionCall) expression;
-                    boolean isMvGrouped = mvDetail.getMvQuerySpec().getGroupBy().isPresent();
-                    HavingRewriteVisitor visitor = new HavingRewriteVisitor(mvSelectableColumnExtend, mvDetail.getMvColumnRefMap(), mvDetail, isMvGrouped);
-                    Expression process = visitor.process(expression);
-                    if (process == null) {
-                        notFit(String.format("select fail: cannot process %s", expression));
-                        return origSelect;
-                    }
-                    SingleColumn after = new SingleColumn(process, origColumn.getAlias());
-                    rewrite.add(after);
-                } else {
-                    // 不涉及字段, 直接加入. 如 select 1 as foo
-                    rewrite.add(origSelectItem);
-                }
-                continue;
-            }
-
-            SingleColumn mvCol = (SingleColumn) mvSelectableColumnExtend.get(qCol);
-            if (mvCol == null) {
-                notFit("column not present in mv:" + qCol);
-                return origSelect;
-            }
-
-            Identifier mvColumnLast = getNameLastPart(mvCol);
-            Identifier origColumnLast = getNameLastPart(origColumn);
-            // 获取mv中该字段的名称
-            // 这个用mv字段名, ru iceberg.tpch_tiny.orders
-            Expression eee = new DereferenceExpression(mvDetail.getTableNameExpression(), mvColumnLast);
-            SingleColumn a1 = new SingleColumn(eee, origColumnLast);
-            rewrite.add(a1);
-
+        boolean isMvGrouped = mvDetail.getMvQuerySpec().getGroupBy().isPresent();
+        SelectRewriteVisitor visitor = new SelectRewriteVisitor(mvSelectableColumnExtend, columnRefMap, mvDetail, isMvGrouped);
+        Select afterSelect = visitor.process(origSelect);
+        if (!visitor.isFit()) {
+            notFit(visitor.getReason());
         }
 
-        Select s = new Select(origSelect.isDistinct(), rewrite);
-        return s;
+        return afterSelect;
     }
 
     private Optional<Expression> processWhere(MvDetail mvDetail) {
