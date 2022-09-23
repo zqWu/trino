@@ -2,13 +2,22 @@ package io.trino.sql.rewrite;
 
 import io.airlift.log.Logger;
 import io.trino.Session;
+import io.trino.SystemSessionProperties;
 import io.trino.execution.warnings.WarningCollector;
-import io.trino.sql.analyzer.*;
+import io.trino.sql.analyzer.Analysis;
+import io.trino.sql.analyzer.AnalyzerFactory;
+import io.trino.sql.analyzer.CorrelationSupport;
+import io.trino.sql.analyzer.QueryType;
+import io.trino.sql.analyzer.StatementAnalyzer;
 import io.trino.sql.rewritemv.MaterializedViewLoader;
 import io.trino.sql.rewritemv.MaterializedViewRewriteHelper;
 import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.rewritemv.QueryRewriter;
-import io.trino.sql.tree.*;
+import io.trino.sql.tree.Expression;
+import io.trino.sql.tree.NodeRef;
+import io.trino.sql.tree.Parameter;
+import io.trino.sql.tree.Query;
+import io.trino.sql.tree.Statement;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +28,16 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
     private static final Logger LOG = Logger.get(MaterializedViewRewrite.class);
 
     @Override
-    public Statement rewrite(AnalyzerFactory analyzerFactory, Session session, Statement statement, List<Expression> parameters, Map<NodeRef<Parameter>, Expression> parameterLookup, WarningCollector warningCollector) {
+    public Statement rewrite(AnalyzerFactory analyzerFactory,
+                             Session session,
+                             Statement statement,
+                             List<Expression> parameters,
+                             Map<NodeRef<Parameter>, Expression> parameterLookup,
+                             WarningCollector warningCollector) {
+
+        if (!SystemSessionProperties.isEnableQueryRewriteWithMaterializedView(session)) {
+            return statement;
+        }
 
         // only apply to query, ignore else (eg. insert/ update / delete / ddl ...)
         if (!(statement instanceof Query)) {

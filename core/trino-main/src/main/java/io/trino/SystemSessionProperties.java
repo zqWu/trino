@@ -171,6 +171,7 @@ public final class SystemSessionProperties
     public static final String USE_EXACT_PARTITIONING = "use_exact_partitioning";
     public static final String FORCE_SPILLING_JOIN = "force_spilling_join";
 
+    public static final String ENABLE_QUERY_REWRITE_WITH_MATERIALIZED_VIEW = "enable_query_rewrite_with_materialized_view";
     private final List<PropertyMetadata<?>> sessionProperties;
 
     public SystemSessionProperties()
@@ -835,7 +836,13 @@ public final class SystemSessionProperties
                         FORCE_SPILLING_JOIN,
                         "Force the usage of spliing join operator in favor of the non-spilling one, even if spill is not enabled",
                         featuresConfig.isForceSpillingJoin(),
-                        false));
+                        false),
+                booleanProperty(
+                        ENABLE_QUERY_REWRITE_WITH_MATERIALIZED_VIEW,
+                        "enable query rewrite using pre-defined materialized view",
+                        featuresConfig.isEnableQueryRewriteWithMaterializedView(),
+                        false)
+                );
     }
 
     @Override
@@ -1492,5 +1499,10 @@ public final class SystemSessionProperties
     public static boolean isForceSpillingOperator(Session session)
     {
         return session.getSystemProperty(FORCE_SPILLING_JOIN, Boolean.class);
+    }
+
+    public static boolean isEnableQueryRewriteWithMaterializedView(Session session)
+    {
+        return session.getSystemProperty(ENABLE_QUERY_REWRITE_WITH_MATERIALIZED_VIEW, Boolean.class);
     }
 }
