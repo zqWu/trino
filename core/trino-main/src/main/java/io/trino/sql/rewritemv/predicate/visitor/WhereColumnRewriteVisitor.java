@@ -27,6 +27,7 @@ import java.util.Map;
 /**
  * 改写 where 中的 Expression的 Visitor类
  * 目前是 column替换
+ * TODO 如果某些没有 node没有change, 是不需要 new 的
  */
 public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     private static final Logger LOG = Logger.get(WhereColumnRewriteVisitor.class);
