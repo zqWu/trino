@@ -30,13 +30,21 @@ public class MaterializedViewLoader {
     private static Map<QualifiedObjectName, MvDetail> mvCache = new HashMap<>();
 
     private static List<QualifiedObjectName> skipList = Arrays.asList(
-            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part01_1"),
-            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part02_1"),
-            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_1"),
-            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_2"),
-            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_1"),
-            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_2"),
-            // new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_3"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part01_1"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part02_1"),
+//
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_1"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_2"),
+//
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_1"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_2"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_3"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_4"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_5"),
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_6"),
+//
+//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part05_1"),
+
             new QualifiedObjectName("iceberg", "kernel_db01", "na")
     );
 

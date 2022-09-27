@@ -6,18 +6,13 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 --execute "
 set session query_rewrite_with_materialized_view_status = 1;
 
-SELECT mfgr, brand, size, avg(retailprice) as avg_price
-from iceberg.kernel_db01.part04_6
-
-where iceberg.kernel_db01.part04_6.size>=30 and -size<= -32
--- and size in (select distinct size from iceberg.kernel_db01.part04_6)
-and size in (31,32,33)
-
-GROUP BY mfgr, brand,size
-having max(retailprice) < 1890
-   and min(retailprice) > 910
-   and avg(retailprice) < 1390
-order by avg_price desc
+SELECT mfgr mfgr2, brand, type type2, size
+from iceberg.kernel_db01.part03_3
+where 1=1
+  and mfgr='Manufacturer#1'
+  and size>=30 and size<40
+  and brand like 'Brand#2%'
+GROUP BY mfgr, brand, type, size;
 ;
 "
 

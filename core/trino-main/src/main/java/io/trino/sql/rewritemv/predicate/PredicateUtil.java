@@ -349,9 +349,19 @@ public class PredicateUtil {
                 compensation.add(expr);
             }
         }
+        // 这些 mvOther条件, 在queryOther中不包含
+        if (mvOther.size() != 0) {
+            return "some other predicate(s) in mv not contains in queryOther:" + mvOther.get(0);
+        }
         return null;
     }
 
+    /**
+     * 1. 移除 always true的 expression, 比如 where 1=1 这里的 1=1条件
+     * 2. rewrite express
+     *
+     * @return error message if error happens, null=all ok
+     */
     private static String replaceColumnInCondition(
             List<PredicateOther> other, List<Expression> replaced, ExpressionRewriter rewriter) {
         if (other == null || other.size() == 0) {

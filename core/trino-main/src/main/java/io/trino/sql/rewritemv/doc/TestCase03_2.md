@@ -6,14 +6,8 @@ CREATE TABLE iceberg.kernel_db01.part03_2
 as 
     select partkey, mfgr, brand, type, size
     from tpch.tiny.part;
-```
 
-
-# 解决 where 中等价问题2
-
-
-## mv定义
-```sql
+-- 
 create or replace materialized view iceberg.kernel_db01.mv_part03_2 as
 SELECT mfgr mfgr2, brand, type type2, size
 from iceberg.kernel_db01.part03_2
