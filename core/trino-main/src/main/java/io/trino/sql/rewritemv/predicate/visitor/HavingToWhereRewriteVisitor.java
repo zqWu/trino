@@ -44,7 +44,7 @@ public class HavingToWhereRewriteVisitor extends FunctionCallVisitor {
                 }
                 return result;
             case "count":
-                return processFunctionCount(node, node.getName(), true);
+                return processFunctionCount(node, node.getName(), false);
             default:
                 return null;
         }

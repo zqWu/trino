@@ -131,7 +131,7 @@ public class HavingRewriteVisitor extends FunctionCallVisitor {
      * count(x) =======> sum(count_x)
      */
     private Expression processFunctionCount(FunctionCall node, QualifiedName funName) {
-        Expression expr = super.processFunctionCount(node, funName, true);
+        Expression expr = super.processFunctionCount(node, funName, false);
         if (expr != null) {
             return new FunctionCall(FUNCTION_SUM, List.of(expr));
         }

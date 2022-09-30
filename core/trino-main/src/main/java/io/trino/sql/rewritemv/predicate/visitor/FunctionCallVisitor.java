@@ -134,7 +134,7 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
      *
      * @param node FunctionCall
      * @param funName count
-     * @param enableCountAll 如果查找不到 count(colA), 是否允许 count(*) 替代
+     * @param enableCountAll 如果查找不到 count(colA), 是否允许 count(*) 替代, 注意 count(*) = count(1) = count(-99), 但是 count(colA) 与 不统计 colA=null的行, count(1) != count(colA)
      * @return 替换后的函数, null = fail to rewrite
      */
     protected Expression processFunctionCount(FunctionCall node, QualifiedName funName, boolean enableCountAll) {
