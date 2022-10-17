@@ -6,13 +6,10 @@ client/trino-cli/target/trino-cli-*-executable.jar \
 --execute "
 set session query_rewrite_with_materialized_view_status = 1;
 
-SELECT mfgr mfgr2, brand, type type2, size
-from iceberg.kernel_db01.part03_3
-where 1=1
-  and mfgr='Manufacturer#1'
-  and size>=30 and size<40
-  and brand like 'Brand#2%'
-GROUP BY mfgr, brand, type, size;
+SELECT mfgr, brand, max(retailprice) as max_price
+from iceberg.kernel_db01.part04_4
+where size=30
+GROUP BY mfgr, brand
 ;
 "
 

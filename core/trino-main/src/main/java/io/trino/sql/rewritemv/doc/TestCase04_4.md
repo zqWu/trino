@@ -53,6 +53,18 @@ GROUP BY mfgr2, brand
 having max(max_price) > 1620
 
 
+-- 不同groupBy, original 多了having max(colA), 且 having字段直接存在, 可以替换
+SELECT mfgr, brand, max(retailprice) as max_price
+from iceberg.kernel_db01.part04_4
+where size=30
+GROUP BY mfgr, brand
+
+-- 这个是上面 手动 rewrite的结果
+select mfgr2, brand, max(max_price) as max_price
+from iceberg.kernel_db01.mv_part04_4
+where s0=30
+GROUP BY mfgr2, brand
+
 
 -- 不同groupBy, original 多了having max/min/sum
 SELECT mfgr, brand
