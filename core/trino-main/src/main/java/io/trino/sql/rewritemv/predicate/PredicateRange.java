@@ -31,20 +31,25 @@ import static io.trino.util.DateTimeUtils.parseYearMonthInterval;
  * expression: colA >,>=,=,<=,< constant
  * eg. colA > 3, colA <= 7
  */
-public class PredicateRange extends Predicate {
+public class PredicateRange
+        extends Predicate
+{
 
-    public static class PredicateRangeBound {
+    public static class PredicateRangeBound
+    {
         private final ComparisonExpression.Operator op;
         private final Literal value;
 
-        public PredicateRangeBound(ComparisonExpression.Operator op, Literal value) {
+        public PredicateRangeBound(ComparisonExpression.Operator op, Literal value)
+        {
             this.op = op;
             this.value = value;
         }
 
         public static final PredicateRangeBound UNBOUND = new PredicateRangeBound(EQUAL, null);
 
-        public static PredicateRangeBound mergeLower(PredicateRangeBound a, PredicateRangeBound b) {
+        public static PredicateRangeBound mergeLower(PredicateRangeBound a, PredicateRangeBound b)
+        {
             if (a == UNBOUND || b == UNBOUND) {
                 return (a == UNBOUND) ? b : a;
             }
@@ -55,18 +60,22 @@ public class PredicateRange extends Predicate {
             int comp = PredicateRange.compareLiteralValue(a.getValue(), b.getValue());
             if (comp < 0) {
                 return b;
-            } else if (comp > 0) {
+            }
+            else if (comp > 0) {
                 return a;
-            } else {
+            }
+            else {
                 if (a.getOp() == GREATER_THAN) {
                     return a;
-                } else {
+                }
+                else {
                     return b;
                 }
             }
         }
 
-        public static PredicateRangeBound mergeUpper(PredicateRangeBound a, PredicateRangeBound b) {
+        public static PredicateRangeBound mergeUpper(PredicateRangeBound a, PredicateRangeBound b)
+        {
             if (a == UNBOUND || b == UNBOUND) {
                 return (a == UNBOUND) ? b : a;
             }
@@ -77,18 +86,22 @@ public class PredicateRange extends Predicate {
             int comp = PredicateRange.compareLiteralValue(a.getValue(), b.getValue());
             if (comp < 0) {
                 return a;
-            } else if (comp > 0) {
+            }
+            else if (comp > 0) {
                 return b;
-            } else {
+            }
+            else {
                 if (a.getOp() == ComparisonExpression.Operator.LESS_THAN) {
                     return a;
-                } else {
+                }
+                else {
                     return b;
                 }
             }
         }
 
-        public static PredicateRangeBound mergeEqual(PredicateRangeBound a, PredicateRangeBound b) {
+        public static PredicateRangeBound mergeEqual(PredicateRangeBound a, PredicateRangeBound b)
+        {
             if (a == UNBOUND || b == UNBOUND) {
                 return (a == UNBOUND) ? b : a;
             }
@@ -101,7 +114,8 @@ public class PredicateRange extends Predicate {
             throw new RuntimeException("2个 字面量 无法相等");
         }
 
-        public boolean coverOther(PredicateRangeBound o) {
+        public boolean coverOther(PredicateRangeBound o)
+        {
             if (this == UNBOUND) {
                 return true;
             }
@@ -113,7 +127,8 @@ public class PredicateRange extends Predicate {
             if (op == EQUAL) {
                 if (o.op != EQUAL) {
                     return false;
-                } else {
+                }
+                else {
                     int comp = compareLiteralValue(value, o.value);
                     return comp == 0;
                 }
@@ -179,7 +194,8 @@ public class PredicateRange extends Predicate {
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             if (this == UNBOUND) {
                 return "UNBOUND";
             }
@@ -187,24 +203,32 @@ public class PredicateRange extends Predicate {
         }
 
         // ======== get
-        public ComparisonExpression.Operator getOp() {
+        public ComparisonExpression.Operator getOp()
+        {
             return op;
         }
 
-        public Literal getValue() {
+        public Literal getValue()
+        {
             return value;
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof PredicateRangeBound)) return false;
+        public boolean equals(Object o)
+        {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof PredicateRangeBound)) {
+                return false;
+            }
             PredicateRangeBound that = (PredicateRangeBound) o;
             return op == that.op && Objects.equals(value, that.value);
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             return Objects.hash(op, value);
         }
     }
@@ -215,7 +239,8 @@ public class PredicateRange extends Predicate {
     private PredicateRangeBound equal;
     private PredicateRangeBound upper;
 
-    public PredicateRange(Expression expr, QualifiedColumn left, Literal right, ComparisonExpression.Operator op) {
+    public PredicateRange(Expression expr, QualifiedColumn left, Literal right, ComparisonExpression.Operator op)
+    {
         super(expr, PredicateType.COLUMN_RANGE);
         if (!validOperator(op)) {
             throw new RuntimeException("not support operator:" + op);
@@ -229,12 +254,14 @@ public class PredicateRange extends Predicate {
             this.equal = new PredicateRangeBound(EQUAL, right);
             this.lower = new PredicateRangeBound(GREATER_THAN_OR_EQUAL, right);
             this.upper = new PredicateRangeBound(LESS_THAN_OR_EQUAL, right);
-        } else if (GREATER_THAN == op
+        }
+        else if (GREATER_THAN == op
                 || GREATER_THAN_OR_EQUAL == op) {
             this.lower = new PredicateRangeBound(op, right);
             this.equal = PredicateRangeBound.UNBOUND;
             this.upper = PredicateRangeBound.UNBOUND;
-        } else if (ComparisonExpression.Operator.LESS_THAN == op
+        }
+        else if (ComparisonExpression.Operator.LESS_THAN == op
                 || ComparisonExpression.Operator.LESS_THAN_OR_EQUAL == op) {
             this.upper = new PredicateRangeBound(op, right);
             this.equal = PredicateRangeBound.UNBOUND;
@@ -242,19 +269,22 @@ public class PredicateRange extends Predicate {
         }
     }
 
-    public static PredicateRange fromRange(Expression expr, QualifiedColumn left, Literal min, Literal max) {
+    public static PredicateRange fromRange(Expression expr, QualifiedColumn left, Literal min, Literal max)
+    {
         PredicateRange range = new PredicateRange(expr, left, min, GREATER_THAN_OR_EQUAL);
         range.upper = new PredicateRangeBound(LESS_THAN_OR_EQUAL, max);
         return range;
     }
 
-    private PredicateRange(QualifiedColumn left, EquivalentClass ec) {
+    private PredicateRange(QualifiedColumn left, EquivalentClass ec)
+    {
         super(null, PredicateType.COLUMN_RANGE);
         this.left = left;
         this.ec = ec;
     }
 
-    public static PredicateRange unbound(QualifiedColumn left, EquivalentClass ec) {
+    public static PredicateRange unbound(QualifiedColumn left, EquivalentClass ec)
+    {
         PredicateRange pr = new PredicateRange(left, ec);
         pr.lower = PredicateRangeBound.UNBOUND;
         pr.equal = PredicateRangeBound.UNBOUND;
@@ -265,7 +295,8 @@ public class PredicateRange extends Predicate {
     /**
      * range的交集
      */
-    public PredicateRange intersection(PredicateRange o) {
+    public PredicateRange intersection(PredicateRange o)
+    {
         PredicateRange pr = new PredicateRange(this.left, this.ec);
         PredicateRangeBound mergedEqual = PredicateRangeBound.mergeLower(this.equal, o.equal);
         PredicateRangeBound mergedLower = PredicateRangeBound.mergeLower(this.lower, o.lower);
@@ -278,7 +309,8 @@ public class PredicateRange extends Predicate {
         return pr;
     }
 
-    public static boolean validOperator(ComparisonExpression.Operator op) {
+    public static boolean validOperator(ComparisonExpression.Operator op)
+    {
         return EQUAL == op
                 || GREATER_THAN == op
                 || GREATER_THAN_OR_EQUAL == op
@@ -286,7 +318,8 @@ public class PredicateRange extends Predicate {
                 || ComparisonExpression.Operator.LESS_THAN_OR_EQUAL == op;
     }
 
-    public static boolean validLiteral(Literal l) {
+    public static boolean validLiteral(Literal l)
+    {
         return l instanceof DecimalLiteral
                 || l instanceof DoubleLiteral
                 || l instanceof IntervalLiteral
@@ -297,7 +330,8 @@ public class PredicateRange extends Predicate {
     }
 
     // 参考 LiteralInterpreter.java
-    private static int compareLiteralValue(Literal l1, Literal l2) {
+    private static int compareLiteralValue(Literal l1, Literal l2)
+    {
         Class<? extends Literal> clazz1 = l1.getClass();
         Class<? extends Literal> clazz2 = l2.getClass();
         if (clazz1 != clazz2) {
@@ -349,22 +383,24 @@ public class PredicateRange extends Predicate {
         throw new RuntimeException("TODO: StringLiteral TimeLiteral TimestampLiteral");
     }
 
-    private static long visitIntervalLiteral(IntervalLiteral node) {
+    private static long visitIntervalLiteral(IntervalLiteral node)
+    {
         if (node.isYearToMonth()) {
             return node.getSign().multiplier() * parseYearMonthInterval(node.getValue(), node.getStartField(), node.getEndField());
         }
         return node.getSign().multiplier() * parseDayTimeInterval(node.getValue(), node.getStartField(), node.getEndField());
     }
 
-
-    public boolean coverOther(PredicateRange o) {
+    public boolean coverOther(PredicateRange o)
+    {
         if (!Objects.equals(left, o.left)) {
             return false;
         }
         return coverOtherValue(o);
     }
 
-    public boolean coverOtherValue(PredicateRange o) {
+    public boolean coverOtherValue(PredicateRange o)
+    {
         // lower cover check
         boolean cover = lower.coverOther(o.lower);
         if (cover) {
@@ -377,7 +413,8 @@ public class PredicateRange extends Predicate {
     }
 
     // large比self的范围大
-    public PredicateRange baseOn(PredicateRange large) {
+    public PredicateRange baseOn(PredicateRange large)
+    {
         PredicateRange onTop = unbound(left, ec);
 
         // equal
@@ -385,7 +422,8 @@ public class PredicateRange extends Predicate {
             if (large.getEqual() == PredicateRangeBound.UNBOUND) {
                 onTop.equal = this.equal;
             }
-        } else {
+        }
+        else {
             // lower
             if (this.lower != PredicateRangeBound.UNBOUND) {
                 if (!Objects.equals(this.lower, large.lower)) {
@@ -404,7 +442,8 @@ public class PredicateRange extends Predicate {
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         StringBuilder sb = new StringBuilder();
         sb.append(left).append(" [")
                 .append(" ").append(lower)
@@ -416,32 +455,39 @@ public class PredicateRange extends Predicate {
 
     // ======== get
 
-    public EquivalentClass getEc() {
+    public EquivalentClass getEc()
+    {
         return ec;
     }
 
-    public void setEc(EquivalentClass ec) {
+    public void setEc(EquivalentClass ec)
+    {
         this.ec = ec;
     }
 
-    public QualifiedColumn getLeft() {
+    public QualifiedColumn getLeft()
+    {
         return left;
     }
 
-    public PredicateRangeBound getLower() {
+    public PredicateRangeBound getLower()
+    {
         return lower;
     }
 
-    public PredicateRangeBound getEqual() {
+    public PredicateRangeBound getEqual()
+    {
         return equal;
     }
 
-    public PredicateRangeBound getUpper() {
+    public PredicateRangeBound getUpper()
+    {
         return upper;
     }
 
     // ========= main
-    public static void main(String[] args) {
+    public static void main(String[] args)
+    {
         // cover
         QualifiedObjectName table = new QualifiedObjectName("c", "s", "db");
         QualifiedColumn colA = new QualifiedColumn(table, "colA");
@@ -466,10 +512,8 @@ public class PredicateRange extends Predicate {
         PredicateRange pr1x = pr1pr2.baseOn(pr2);
         System.out.println("pr1x= " + pr1x);
 
-
         System.out.println("pr2pr3= " + pr2pr3);
         PredicateRange pr3x = pr2pr3.baseOn(pr2);
         System.out.println("pr3x= " + pr3x);
-
     }
 }

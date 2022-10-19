@@ -10,12 +10,15 @@ import static java.util.Objects.requireNonNull;
 /**
  * 一个全限定 单个字段名
  */
-public class QualifiedColumn implements Comparable<QualifiedColumn> {
+public class QualifiedColumn
+        implements Comparable<QualifiedColumn>
+{
     private final QualifiedObjectName table;
     private final String columnName;
 
     @Override
-    public int compareTo(@NotNull QualifiedColumn o) {
+    public int compareTo(@NotNull QualifiedColumn o)
+    {
         // 比较 catalogName
         int result = table.getCatalogName().compareTo(o.getTable().getCatalogName());
         if (result != 0) {
@@ -38,7 +41,8 @@ public class QualifiedColumn implements Comparable<QualifiedColumn> {
         return columnName.compareTo(o.columnName);
     }
 
-    public QualifiedColumn(QualifiedObjectName table, String columnName) {
+    public QualifiedColumn(QualifiedObjectName table, String columnName)
+    {
         requireNonNull(table, "table is null");
         requireNonNull(table.getCatalogName(), "table.catalog is null");
         requireNonNull(table.getSchemaName(), "table.schema is null");
@@ -49,30 +53,38 @@ public class QualifiedColumn implements Comparable<QualifiedColumn> {
         this.columnName = columnName;
     }
 
-    public QualifiedObjectName getTable() {
+    public QualifiedObjectName getTable()
+    {
         return table;
     }
 
-    public String getColumnName() {
+    public String getColumnName()
+    {
         return columnName;
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return table + "." + columnName;
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof QualifiedColumn)) return false;
+    public boolean equals(Object o)
+    {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof QualifiedColumn)) {
+            return false;
+        }
         QualifiedColumn that = (QualifiedColumn) o;
         return Objects.equals(table, that.table) && Objects.equals(columnName, that.columnName);
     }
 
     @Override
-    public int hashCode() {
+    public int hashCode()
+    {
         return Objects.hash(table, columnName);
     }
-
 }

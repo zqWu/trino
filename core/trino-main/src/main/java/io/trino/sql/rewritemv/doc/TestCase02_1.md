@@ -1,4 +1,5 @@
 # 解决 where 中等价问题
+- 各种名字 normalize
 - where a=b and a=1
 - where a=b and b=1
 
@@ -35,7 +36,9 @@ refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part02_1;
 
 ## 测试sql, 预期能够替换
 ```sql
-SELECT iceberg.kernel_db01.part02_1.mfgr, brand, type, count(1) as _cnt
+set session query_rewrite_with_materialized_view_status = 2;
+
+SELECT iceberg.kernel_db01.part02_1.mfgr, brand, type
 from iceberg.kernel_db01.part02_1
 where 1=1
      and mfgr=mfgr
@@ -44,8 +47,6 @@ where 1=1
      and size_cp=size
 GROUP BY mfgr, brand, type
 ;
-
-
 ```
 
 

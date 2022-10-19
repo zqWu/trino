@@ -23,29 +23,35 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class PredicateUtil {
+public class PredicateUtil
+{
 
     /**
      * 多个 condition 使用 and进行组装
      */
-    public static Expression logicAnd(List<Expression> conditions) {
+    public static Expression logicAnd(List<Expression> conditions)
+    {
         if (conditions == null || conditions.size() == 0) {
             return null;
-        } else if (conditions.size() == 1) {
+        }
+        else if (conditions.size() == 1) {
             return conditions.get(0);
-        } else {
+        }
+        else {
             return new LogicalExpression(LogicalExpression.Operator.AND, conditions);
         }
     }
 
-    public static Expression logicAnd(Expression expr1, Expression expr2) {
+    public static Expression logicAnd(Expression expr1, Expression expr2)
+    {
         return new LogicalExpression(LogicalExpression.Operator.AND, Arrays.asList(expr1, expr2));
     }
 
     /**
      * flatten where to atomic predicate
      */
-    public static PredicateAnalysis analyzePredicate(Expression whereExpr, Map<Expression, QualifiedColumn> map) {
+    public static PredicateAnalysis analyzePredicate(Expression whereExpr, Map<Expression, QualifiedColumn> map)
+    {
         if (whereExpr == null) {
             return PredicateAnalysis.EMPTY_PREDICATE;
         }
@@ -61,15 +67,19 @@ public class PredicateUtil {
     /**
      * 将一个 大的 predicate 分解为多个 {@link Predicate}
      */
-    private static class PredicateVisitor extends AstVisitor<Void, PredicateAnalysis> {
+    private static class PredicateVisitor
+            extends AstVisitor<Void, PredicateAnalysis>
+    {
         private final Map<Expression, QualifiedColumn> refMap;
 
-        public PredicateVisitor(Map<Expression, QualifiedColumn> refMap) {
+        public PredicateVisitor(Map<Expression, QualifiedColumn> refMap)
+        {
             this.refMap = refMap;
         }
 
         @Override
-        protected Void visitComparisonExpression(ComparisonExpression node, PredicateAnalysis context) {
+        protected Void visitComparisonExpression(ComparisonExpression node, PredicateAnalysis context)
+        {
             // TODO 对于比较, 需要区分是 colA op colB, 还是 colA op value
             // colA=3这样的形式
             Expression left = node.getLeft();
@@ -82,14 +92,17 @@ public class PredicateUtil {
                 if (PredicateRange.validOperator(op) && PredicateRange.validLiteral((Literal) right)) {
                     QualifiedColumn column1 = refMap.get(left);
                     context.addPredicate(new PredicateRange(node, column1, (Literal) right, op));
-                } else {
+                }
+                else {
                     context.addPredicate(new PredicateOther(node));
                 }
-            } else if ((right instanceof DereferenceExpression || right instanceof Identifier) && left instanceof Literal) {
+            }
+            else if ((right instanceof DereferenceExpression || right instanceof Identifier) && left instanceof Literal) {
                 if (PredicateRange.validOperator(op) && PredicateRange.validLiteral((Literal) left)) {
                     QualifiedColumn column1 = refMap.get(right);
                     context.addPredicate(new PredicateRange(node, column1, (Literal) left, op));
-                } else {
+                }
+                else {
                     context.addPredicate(new PredicateOther(node));
                 }
             }
@@ -113,7 +126,8 @@ public class PredicateUtil {
         }
 
         @Override
-        protected Void visitBetweenPredicate(BetweenPredicate node, PredicateAnalysis context) {
+        protected Void visitBetweenPredicate(BetweenPredicate node, PredicateAnalysis context)
+        {
             Expression value = node.getValue();
             Expression min = node.getMin();
             Expression max = node.getMax();
@@ -123,7 +137,8 @@ public class PredicateUtil {
 
                 QualifiedColumn column = refMap.get(value);
                 context.addPredicate(PredicateRange.fromRange(node, column, (Literal) min, (Literal) max));
-            } else {
+            }
+            else {
                 context.addPredicate(new PredicateOther(node));
             }
 
@@ -131,31 +146,36 @@ public class PredicateUtil {
         }
 
         @Override
-        protected Void visitLogicalExpression(LogicalExpression node, PredicateAnalysis context) {
+        protected Void visitLogicalExpression(LogicalExpression node, PredicateAnalysis context)
+        {
             if (LogicalExpression.Operator.AND == node.getOperator()) {
                 for (Expression expr : node.getTerms()) {
                     process(expr, context);
                 }
-            } else {
+            }
+            else {
                 context.notSupport("unsupported: logicExpression OR:" + node);
             }
             return null;
         }
 
         @Override
-        protected Void visitIsNotNullPredicate(IsNotNullPredicate node, PredicateAnalysis context) {
+        protected Void visitIsNotNullPredicate(IsNotNullPredicate node, PredicateAnalysis context)
+        {
             context.addPredicate(new PredicateOther(node));
             return null;
         }
 
         @Override
-        protected Void visitIsNullPredicate(IsNullPredicate node, PredicateAnalysis context) {
+        protected Void visitIsNullPredicate(IsNullPredicate node, PredicateAnalysis context)
+        {
             context.addPredicate(new PredicateOther(node));
             return null;
         }
 
         @Override
-        protected Void visitExpression(Expression node, PredicateAnalysis context) {
+        protected Void visitExpression(Expression node, PredicateAnalysis context)
+        {
             context.addPredicate(new PredicateOther(node));
             return null;
         }
@@ -176,7 +196,8 @@ public class PredicateUtil {
             List<PredicateRange> originalRange,
             List<PredicateRange> mvRange,
             List<EquivalentClass> ecList,
-            List<Predicate> compensation) {
+            List<Predicate> compensation)
+    {
 
         List<PredicateRange> looseRemain = new ArrayList<>(mvRange);
         List<PredicateRange> tightRemain = new ArrayList<>(originalRange);
@@ -196,7 +217,8 @@ public class PredicateUtil {
             if (tightPredicate.size() == 0) {
                 if (loosePredicate.size() == 0) {
                     continue;
-                } else {
+                }
+                else {
                     return "range predicate: cannot cover: " + loosePredicate.get(0);
                 }
             }
@@ -235,7 +257,6 @@ public class PredicateUtil {
         return null;
     }
 
-
     /**
      * 比较ec 并得到补偿条件
      *
@@ -247,14 +268,14 @@ public class PredicateUtil {
     public static String processPredicateEqual(
             List<EquivalentClass> origEcList,
             List<EquivalentClass> mvEcList,
-            List<Predicate> compensation) {
+            List<Predicate> compensation)
+    {
 
         // make sure all equal in mv, must appear in query
         // 1.1 EquivalentClass contain, eg,
         // mv   eg=[ (colA, colB),       (colC, colD),       (colM, comN)]
         // orig eg=[ (colA, colB, colE), (colC, colD, colY), (colM)      ]
         Map<EquivalentClass, List<EquivalentClass>> map = new HashMap<>(); // ec in original ---- 多个关联ec in mv
-
 
         // every non-trivial ec in mv, must in original
         for (EquivalentClass mvEc : mvEcList) {
@@ -279,7 +300,8 @@ public class PredicateUtil {
                 List<EquivalentClass> list = new ArrayList<>();
                 list.add(mvEc);
                 map.put(origEc, list);
-            } else {
+            }
+            else {
                 map.get(origEc).add(mvEc);
             }
         }
@@ -290,7 +312,8 @@ public class PredicateUtil {
             List<EquivalentClass> toRemove = map.get(origEc);
             if (toRemove == null || toRemove.size() == 0) {
                 tmp1.add(origEc);
-            } else {
+            }
+            else {
                 // 从 origEc中 删除 toRemove中保留的关系
                 EquivalentClass remain = new EquivalentClass();
                 Set<QualifiedColumn> big = new HashSet<>();
@@ -328,7 +351,8 @@ public class PredicateUtil {
             List<PredicateOther> queryOtherList,
             List<PredicateOther> mvOtherList,
             List<Expression> compensation,
-            ExpressionRewriter rewriter) {
+            ExpressionRewriter rewriter)
+    {
 
         List<Expression> queryOther = new ArrayList<>();
         String err1 = replaceColumnInCondition(queryOtherList, queryOther, rewriter);
@@ -345,7 +369,8 @@ public class PredicateUtil {
         for (Expression expr : queryOther) {
             if (mvOther.contains(expr)) {
                 mvOther.remove(expr);
-            } else {
+            }
+            else {
                 compensation.add(expr);
             }
         }
@@ -363,7 +388,8 @@ public class PredicateUtil {
      * @return error message if error happens, null=all ok
      */
     private static String replaceColumnInCondition(
-            List<PredicateOther> other, List<Expression> replaced, ExpressionRewriter rewriter) {
+            List<PredicateOther> other, List<Expression> replaced, ExpressionRewriter rewriter)
+    {
         if (other == null || other.size() == 0) {
             return null;
         }
@@ -377,7 +403,8 @@ public class PredicateUtil {
             Expression after = rewriter.process(before);
             if (after != null) {
                 replaced.add(after);
-            } else {
+            }
+            else {
                 return "predicate: could not handle other predicate" + before;
             }
         }

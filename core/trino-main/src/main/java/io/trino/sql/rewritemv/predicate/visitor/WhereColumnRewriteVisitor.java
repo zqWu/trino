@@ -25,48 +25,55 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * 改写 where 中的 Expression的 Visitor类
  * 目前是 column替换
  * TODO 如果某些没有 node没有change, 是不需要 new 的
  */
-public class WhereColumnRewriteVisitor extends ExpressionRewriter {
+public class WhereColumnRewriteVisitor
+        extends ExpressionRewriter
+{
     private static final Logger LOG = Logger.get(WhereColumnRewriteVisitor.class);
     protected final Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
     protected final Map<Expression, QualifiedColumn> origColumnRefMap;
     protected final MvDetail mvDetail;
 
     public WhereColumnRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                                     Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {
+            Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail)
+    {
         this.mvSelectableColumnExtend = mvSelectableColumnExtend;
         this.origColumnRefMap = origColumnRefMap;
         this.mvDetail = mvDetail;
     }
 
-    protected DereferenceExpression getColumnReference(QualifiedColumn col) {
+    protected DereferenceExpression getColumnReference(QualifiedColumn col)
+    {
         return RewriteUtils.findColumnInMv(col, mvSelectableColumnExtend, mvDetail.getTableNameExpression());
     }
 
     @Override
-    protected Expression visitIdentifier(Identifier node, Void context) {
+    protected Expression visitIdentifier(Identifier node, Void context)
+    {
         QualifiedColumn col = origColumnRefMap.get(node);
         return getColumnReference(col);
     }
 
     @Override
-    protected Expression visitDereferenceExpression(DereferenceExpression node, Void context) {
+    protected Expression visitDereferenceExpression(DereferenceExpression node, Void context)
+    {
         QualifiedColumn col = origColumnRefMap.get(node);
         return getColumnReference(col);
     }
 
     @Override
-    protected Expression visitLiteral(Literal node, Void context) {
+    protected Expression visitLiteral(Literal node, Void context)
+    {
         return node;
     }
 
     @Override
-    protected Expression visitInListExpression(InListExpression node, Void context) {
+    protected Expression visitInListExpression(InListExpression node, Void context)
+    {
         List<Expression> values = node.getValues();
         List<Expression> newValues = new ArrayList<>(values.size());
 
@@ -74,7 +81,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
             Expression newExpr = process(expr, context);
             if (newExpr != null) {
                 newValues.add(newExpr);
-            } else {
+            }
+            else {
                 break;
             }
         }
@@ -87,7 +95,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitLikePredicate(LikePredicate node, Void context) {
+    protected Expression visitLikePredicate(LikePredicate node, Void context)
+    {
         Expression expr = process(node.getValue());
         if (expr != null) {
             return new LikePredicate(expr, node.getPattern(), node.getEscape());
@@ -97,7 +106,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitIsNotNullPredicate(IsNotNullPredicate node, Void context) {
+    protected Expression visitIsNotNullPredicate(IsNotNullPredicate node, Void context)
+    {
         Expression expr = process(node.getValue());
         if (expr != null) {
             return new IsNotNullPredicate(expr);
@@ -107,7 +117,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitIsNullPredicate(IsNullPredicate node, Void context) {
+    protected Expression visitIsNullPredicate(IsNullPredicate node, Void context)
+    {
         Expression expr = process(node.getValue());
         if (expr != null) {
             return new IsNullPredicate(expr);
@@ -117,7 +128,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitInPredicate(InPredicate node, Void context) {
+    protected Expression visitInPredicate(InPredicate node, Void context)
+    {
         Expression newValue = process(node.getValue());
         InListExpression inListExpr = (InListExpression) process(node.getValueList());
         if (newValue != null && inListExpr != null) {
@@ -128,7 +140,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitNotExpression(NotExpression node, Void context) {
+    protected Expression visitNotExpression(NotExpression node, Void context)
+    {
         Expression value = node.getValue();
         Expression newExpr = process(value);
         if (newExpr != null) {
@@ -139,7 +152,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitComparisonExpression(ComparisonExpression node, Void context) {
+    protected Expression visitComparisonExpression(ComparisonExpression node, Void context)
+    {
         ComparisonExpression.Operator op = node.getOperator();
 
         Expression newLeft = process(node.getLeft());
@@ -152,7 +166,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitArithmeticBinary(ArithmeticBinaryExpression node, Void context) {
+    protected Expression visitArithmeticBinary(ArithmeticBinaryExpression node, Void context)
+    {
         ArithmeticBinaryExpression.Operator op = node.getOperator();
         if (node.getLeft() instanceof Literal && node.getRight() instanceof Literal) {
             return node;
@@ -167,7 +182,8 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
     }
 
     @Override
-    protected Expression visitArithmeticUnary(ArithmeticUnaryExpression node, Void context) {
+    protected Expression visitArithmeticUnary(ArithmeticUnaryExpression node, Void context)
+    {
         Expression value = node.getValue();
         Expression newValue = process(value, context);
         if (newValue != null) {
@@ -181,25 +197,29 @@ public class WhereColumnRewriteVisitor extends ExpressionRewriter {
      * 有些表达式 不属于上面 几种, 目前暂不支持
      */
     @Override
-    protected Expression visitExpression(Expression node, Void context) {
+    protected Expression visitExpression(Expression node, Void context)
+    {
         // TODO
         return __notSupport(node);
     }
 
-    protected Expression __notSupport(Expression node) {
+    protected Expression __notSupport(Expression node)
+    {
         LOG.warn("not support:" + node);
         return null;
     }
 
     // ===== not support expression =======
     @Override
-    protected Expression visitExists(ExistsPredicate node, Void context) {
+    protected Expression visitExists(ExistsPredicate node, Void context)
+    {
         // TODO
         return __notSupport(node);
     }
 
     @Override
-    protected Expression visitSubqueryExpression(SubqueryExpression node, Void context) {
+    protected Expression visitSubqueryExpression(SubqueryExpression node, Void context)
+    {
         return __notSupport(node);
     }
 }

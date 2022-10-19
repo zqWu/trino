@@ -3,45 +3,44 @@
 
 # base_table & mv
 ```sql
-DROP TABLE if exists iceberg.kernel_db01.part05_1;
+USE iceberg.kernel_db01;
 
-CREATE TABLE iceberg.kernel_db01.part05_1
+DROP TABLE if exists part05_1;
+
+CREATE TABLE part05_1
 as
 select partkey, mfgr, brand, type, size, retailprice, container
 from tpch.tiny.part;
 
 
 -- mv
-create or replace materialized view iceberg.kernel_db01.mv_part05_1 as
+create or replace materialized view mv_part05_1 as
 SELECT 	mfgr mfgr2, 
-        iceberg.kernel_db01.part05_1.brand, 
+        part05_1.brand, 
         type, 
         size, 
         retailprice, 
         container
-from iceberg.kernel_db01.part05_1
-;
+from part05_1;
 
-refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part05_1;
+refresh MATERIALIZED VIEW mv_part05_1;
 
-select count(1) from iceberg.kernel_db01.mv_part05_1;
-select * from iceberg.kernel_db01.mv_part05_1;
--- drop materialized view iceberg.kernel_db01.mv_part05_1 ;
--- drop table iceberg.kernel_db01.part05_1;
+select count(1) from mv_part05_1;
+select * from mv_part05_1;
+-- drop materialized view mv_part05_1 ;
+-- drop table part05_1;
 ```
 
 ## 测试sql
 ```sql
+set session query_rewrite_with_materialized_view_status = 2;
+
 -- max/min/avg
-set session query_rewrite_with_materialized_view_status = 1;
-
-SELECT mfgr, brand, size+1 as , (size+1)*2, avg(retailprice) as avg_price
-from iceberg.kernel_db01.part05_1
-
-where iceberg.kernel_db01.part05_1.size>=30 and -size<= -32
--- and size in (select distinct size from iceberg.kernel_db01.part05_1)
-  and size in (31,32,33)
-
+SELECT mfgr, brand, size+1 as size_1 , (size+1)*2 size_2, avg(retailprice) as avg_price
+from part05_1
+where part05_1.size>=30 
+    and -size<= -32
+    and size in (31,32,33)
 GROUP BY mfgr, brand,size
 having max(retailprice) < 1890
    and min(retailprice) > 910

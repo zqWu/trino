@@ -37,6 +37,8 @@ refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part03_1;
 
 ## 测试sql, 预期能够替换
 ```sql
+set session query_rewrite_with_materialized_view_status = 2;
+
 -- sql1
 SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
 from iceberg.kernel_db01.part03_1
@@ -121,3 +123,10 @@ where 2=2
 GROUP BY mfgr, brand, type, s2
 ```
 
+# 不匹配测试
+```sql
+SELECT iceberg.kernel_db01.part03_1.mfgr, brand, type, s2
+from iceberg.kernel_db01.part03_1
+where 'Manufacturer#2'=mfgr
+GROUP BY mfgr, brand, type, s2
+```

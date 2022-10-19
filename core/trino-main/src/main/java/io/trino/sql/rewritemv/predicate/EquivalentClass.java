@@ -22,21 +22,25 @@ import static java.util.Objects.requireNonNull;
  * colA = colB = colC
  * 并且这个逻辑在后续的条件中继续起作用
  */
-public class EquivalentClass {
+public class EquivalentClass
+{
     private static final Logger LOG = Logger.get(EquivalentClass.class);
     private final Set<QualifiedColumn> columns;
 
-    public EquivalentClass() {
+    public EquivalentClass()
+    {
         columns = new HashSet<>();
     }
 
-    public EquivalentClass(QualifiedColumn c1) {
+    public EquivalentClass(QualifiedColumn c1)
+    {
         requireNonNull(c1);
         columns = new HashSet<>();
         columns.add(c1);
     }
 
-    public EquivalentClass(QualifiedColumn c1, QualifiedColumn c2) {
+    public EquivalentClass(QualifiedColumn c1, QualifiedColumn c2)
+    {
         requireNonNull(c1);
         requireNonNull(c2);
         columns = new HashSet<>();
@@ -44,17 +48,20 @@ public class EquivalentClass {
         columns.add(c2);
     }
 
-    public void add(QualifiedColumn c1, QualifiedColumn... c2) {
+    public void add(QualifiedColumn c1, QualifiedColumn... c2)
+    {
         requireNonNull(c1);
         columns.add(c1);
         columns.addAll(Arrays.asList(c2));
     }
 
-    public void add(Set<QualifiedColumn> columns) {
+    public void add(Set<QualifiedColumn> columns)
+    {
         this.columns.addAll(columns);
     }
 
-    public EquivalentClass merge(EquivalentClass o) {
+    public EquivalentClass merge(EquivalentClass o)
+    {
         Set<QualifiedColumn> s1 = new HashSet<>();
         s1.addAll(this.columns);
         s1.addAll(o.columns);
@@ -63,7 +70,8 @@ public class EquivalentClass {
         return ec;
     }
 
-    public EquivalentClass merge(List<EquivalentClass> l) {
+    public EquivalentClass merge(List<EquivalentClass> l)
+    {
         Set<QualifiedColumn> s1 = new HashSet<>();
         s1.addAll(this.columns);
         for (EquivalentClass ec : l) {
@@ -74,12 +82,14 @@ public class EquivalentClass {
         return ec;
     }
 
-    public boolean contain(QualifiedColumn q) {
+    public boolean contain(QualifiedColumn q)
+    {
         return columns.contains(q);
     }
 
     /* 2个ec 是否有交集 */
-    public boolean hasCommonColumn(EquivalentClass o) {
+    public boolean hasCommonColumn(EquivalentClass o)
+    {
         for (QualifiedColumn qsc : columns) {
             if (o.columns.contains(qsc)) {
                 return true;
@@ -89,7 +99,8 @@ public class EquivalentClass {
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         StringBuilder sb = new StringBuilder();
         sb.append('{');
         for (QualifiedColumn q : columns) {
@@ -100,7 +111,8 @@ public class EquivalentClass {
         return sb.toString();
     }
 
-    public Set<QualifiedColumn> getColumns() {
+    public Set<QualifiedColumn> getColumns()
+    {
         return columns;
     }
 
@@ -131,7 +143,8 @@ public class EquivalentClass {
      * @param in
      * @return
      */
-    public static List<EquivalentClass> fullMerge(List<EquivalentClass> in) {
+    public static List<EquivalentClass> fullMerge(List<EquivalentClass> in)
+    {
         if (Collections.isEmpty(in) || in.size() <= 1) {
             return in;
         }
@@ -151,7 +164,8 @@ public class EquivalentClass {
             if (canMergeHead.size() > 0) {
                 vector.removeAll(canMergeHead);
                 head = head.merge(canMergeHead);
-            } else {
+            }
+            else {
                 save.add(head);
                 head = vector.remove(0);
             }
@@ -164,7 +178,8 @@ public class EquivalentClass {
         return save;
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args)
+    {
         QualifiedObjectName table = new QualifiedObjectName("c", "s", "db");
         QualifiedColumn colA = new QualifiedColumn(table, "colA");
         QualifiedColumn colB = new QualifiedColumn(table, "colB");
@@ -215,6 +230,4 @@ public class EquivalentClass {
         merged = fullMerge(list);
         System.out.println(merged); // [{colD,colA,colB,colC}, {colH,colE,colF,colG}]
     }
-
-
 }

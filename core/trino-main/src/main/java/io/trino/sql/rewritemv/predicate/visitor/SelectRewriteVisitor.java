@@ -1,6 +1,5 @@
 package io.trino.sql.rewritemv.predicate.visitor;
 
-import io.airlift.log.Logger;
 import io.trino.sql.rewritemv.MvDetail;
 import io.trino.sql.rewritemv.QualifiedColumn;
 import io.trino.sql.tree.AllColumns;
@@ -14,21 +13,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class SelectRewriteVisitor extends AstVisitor<Select, Void> {
+public class SelectRewriteVisitor
+        extends AstVisitor<Select, Void>
+{
     private final HavingRewriteVisitor expressionVisitor;
 
     private boolean isFit = true;
     private String reason = null;
 
     public SelectRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                                Map<Expression, QualifiedColumn> columnRefMap,
-                                MvDetail mvDetail,
-                                boolean isMvGrouped) {
+            Map<Expression, QualifiedColumn> columnRefMap,
+            MvDetail mvDetail,
+            boolean isMvGrouped)
+    {
         expressionVisitor = new HavingRewriteVisitor(mvSelectableColumnExtend, columnRefMap, mvDetail, isMvGrouped);
     }
 
     @Override
-    protected Select visitSelect(Select node, Void context) {
+    protected Select visitSelect(Select node, Void context)
+    {
         List<SelectItem> selectItems = node.getSelectItems();
         List<SelectItem> rewrite = new ArrayList<>();
 
@@ -56,11 +59,13 @@ public class SelectRewriteVisitor extends AstVisitor<Select, Void> {
     }
 
     // ======== get
-    public boolean isFit() {
+    public boolean isFit()
+    {
         return isFit;
     }
 
-    public String getReason() {
+    public String getReason()
+    {
         return reason;
     }
 }

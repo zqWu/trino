@@ -23,5 +23,5 @@ private Analysis mvRewrite() {
 # 代码统计
 ```bash
 cd ~/ws/trino/core/trino-main/src/main/java/io/trino/sql/rewritemv
-find . -type f -name "*.java" | xargs wc -l | awk '{print $1}' | datamash sum 1
+find . -type f -name "*.java" | xargs wc -l
 ```

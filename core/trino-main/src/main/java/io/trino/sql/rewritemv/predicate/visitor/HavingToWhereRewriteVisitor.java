@@ -12,7 +12,6 @@ import io.trino.sql.tree.SelectItem;
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * mv 和 query 有着相同的 groupBy, 且query有having时, 才进行这样的改写
  * <p>
@@ -21,15 +20,19 @@ import java.util.Map;
  * - column替换
  * - 函数支持
  */
-public class HavingToWhereRewriteVisitor extends FunctionCallVisitor {
+public class HavingToWhereRewriteVisitor
+        extends FunctionCallVisitor
+{
     public HavingToWhereRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                                       Map<Expression, QualifiedColumn> columnRefMap,
-                                       MvDetail mvDetail) {
+            Map<Expression, QualifiedColumn> columnRefMap,
+            MvDetail mvDetail)
+    {
         super(mvSelectableColumnExtend, columnRefMap, mvDetail);
     }
 
     @Override
-    protected Expression doVisitFunctionCall(FunctionCall node, Void context) {
+    protected Expression doVisitFunctionCall(FunctionCall node, Void context)
+    {
         switch (node.getName().getSuffix()) {
             case "max":
             case "min":
@@ -50,7 +53,6 @@ public class HavingToWhereRewriteVisitor extends FunctionCallVisitor {
         }
     }
 
-
     /**
      * 直接查找
      * max/min/sum/avg 有且只有一个 参数, 且为 column
@@ -59,7 +61,8 @@ public class HavingToWhereRewriteVisitor extends FunctionCallVisitor {
      * @param funName max
      * @param node like FunctionCall("max", "price")
      */
-    private Expression processOneArgFunction(FunctionCall node, QualifiedName funName) {
+    private Expression processOneArgFunction(FunctionCall node, QualifiedName funName)
+    {
         List<Expression> arguments = node.getArguments();
         Expression arg1 = arguments.get(0);
 
@@ -76,7 +79,8 @@ public class HavingToWhereRewriteVisitor extends FunctionCallVisitor {
                 LOG.debug(String.format("having 无法处理 %s(%s)", funName.getSuffix(), columnArg));
             }
             return expr;
-        } else {
+        }
+        else {
             // 比如 having max(colA+colB) > 10 这种结构, 暂不支持
             LOG.warn("max function has complex expression, not support");
             return null;

@@ -17,8 +17,10 @@ import io.trino.sql.tree.Table;
 import java.util.List;
 import java.util.Map;
 
-public class MvDetail {
+public class MvDetail
+{
     private final QualifiedObjectName mvName; // mv name
+    private boolean fresh;
     private final Statement mvStatement;
     private final ViewInfo viewInfo;
     private final Analysis mvAnalysis;
@@ -30,12 +32,12 @@ public class MvDetail {
     private final DereferenceExpression tableNameExpression; // mv的基本表达式, 因为大量用到
     private final PredicateAnalysis mvWherePredicate;
 
-    public MvDetail(QualifiedObjectName mvName, Statement statement, ViewInfo viewInfo, Analysis analysis) {
+    public MvDetail(QualifiedObjectName mvName, Statement statement, ViewInfo viewInfo, Analysis analysis)
+    {
         this.mvName = mvName;
         this.mvStatement = statement;
         this.viewInfo = viewInfo;
         this.mvAnalysis = analysis;
-
 
         // ======== 一些简单的变量提取出来, 便于使用
         this.mvQuery = (Query) analysis.getStatement();
@@ -51,56 +53,80 @@ public class MvDetail {
         // ======== 分析 where
         if (mvQuerySpec.getWhere().isPresent()) {
             this.mvWherePredicate = PredicateUtil.analyzePredicate(mvQuerySpec.getWhere().get(), mvColumnRefMap);
-        } else {
+        }
+        else {
             this.mvWherePredicate = PredicateAnalysis.EMPTY_PREDICATE;
         }
         // ======== 提取 selectableColumn, Map<QualifiedColumn, SelectItem>
         mvSelectableColumn = RewriteUtils.extractSelectSingleField(mvQuerySpec, mvColumnRefMap, mvWherePredicate);
     }
 
+    // ======== set
+
+    public void setFresh(boolean fresh)
+    {
+        this.fresh = fresh;
+    }
+
     // ======== get
 
-    public PredicateAnalysis getMvWherePredicate() {
+    public PredicateAnalysis getMvWherePredicate()
+    {
         return mvWherePredicate;
     }
 
-    public QualifiedObjectName getMvName() {
+    public QualifiedObjectName getMvName()
+    {
         return mvName;
     }
 
-    public Statement getMvStatement() {
+    public Statement getMvStatement()
+    {
         return mvStatement;
     }
 
-    public ViewInfo getViewInfo() {
+    public ViewInfo getViewInfo()
+    {
         return viewInfo;
     }
 
-    public Analysis getMvAnalysis() {
+    public Analysis getMvAnalysis()
+    {
         return mvAnalysis;
     }
 
-    public Query getMvQuery() {
+    public Query getMvQuery()
+    {
         return mvQuery;
     }
 
-    public QuerySpecification getMvQuerySpec() {
+    public QuerySpecification getMvQuerySpec()
+    {
         return mvQuerySpec;
     }
 
-    public Map<Expression, QualifiedColumn> getMvColumnRefMap() {
+    public Map<Expression, QualifiedColumn> getMvColumnRefMap()
+    {
         return mvColumnRefMap;
     }
 
-    public Map<QualifiedColumn, SelectItem> getMvSelectableColumn() {
+    public Map<QualifiedColumn, SelectItem> getMvSelectableColumn()
+    {
         return mvSelectableColumn;
     }
 
-    public List<Table> getMvBaseTable() {
+    public List<Table> getMvBaseTable()
+    {
         return mvBaseTable;
     }
 
-    public DereferenceExpression getTableNameExpression() {
+    public DereferenceExpression getTableNameExpression()
+    {
         return tableNameExpression;
+    }
+
+    public boolean isFresh()
+    {
+        return fresh;
     }
 }

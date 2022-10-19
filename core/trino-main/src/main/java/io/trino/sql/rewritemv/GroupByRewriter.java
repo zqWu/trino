@@ -31,7 +31,8 @@ import java.util.Set;
  * mv 不支持 having
  * - 支持 having, 无法保证正确性
  */
-public class GroupByRewriter {
+public class GroupByRewriter
+{
     private static final Logger LOG = Logger.get(GroupByRewriter.class);
     private final MvDetail mvDetail;
     private final QueryRewriter queryRewriter;
@@ -44,7 +45,8 @@ public class GroupByRewriter {
     private Optional<Expression> resultWhere;         // 如果没有 having, 则改为 where条件
     private Set<QualifiedColumn> groupColumns; // 保存
 
-    public GroupByRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail, boolean sameWhere) {
+    public GroupByRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail, boolean sameWhere)
+    {
         this.mvDetail = mvDetail;
         this.specRewriter = specRewriter;
         this.queryRewriter = specRewriter.getQueryRewriter();
@@ -61,7 +63,8 @@ public class GroupByRewriter {
     /**
      * 入口
      */
-    public void process() {
+    public void process()
+    {
         Optional<GroupBy> origGroupOpt = origSpec.getGroupBy();
         Optional<GroupBy> mvGroupOpt = mvSpec.getGroupBy();
 
@@ -75,7 +78,8 @@ public class GroupByRewriter {
 
         if (mvGroupOpt.isEmpty()) {
             mvNoGroupBy(origGroupOpt.get());
-        } else {
+        }
+        else {
             mvHasGroupBy(origGroupOpt.get(), mvGroupOpt.get());
         }
     }
@@ -83,12 +87,14 @@ public class GroupByRewriter {
     /**
      * case: mv no groupBy
      */
-    private void mvNoGroupBy(GroupBy orig) {
+    private void mvNoGroupBy(GroupBy orig)
+    {
         List<GroupingElement> origList = orig.getGroupingElements();
         List<QualifiedColumn> origGroupByColumn = extractGroupColumn(origList, specRewriter.getColumnRefMap());
         if (origGroupByColumn.size() != origList.size()) {
             notFit("not match : groupBy : contains non column group");
-        } else {
+        }
+        else {
             rewriteSimpleGroupBy(orig.isDistinct(), origGroupByColumn);
             processHaving();
         }
@@ -101,7 +107,8 @@ public class GroupByRewriter {
      * - C mv more and cover: rewrite
      * - D mv more but not cover: not fit
      */
-    private void mvHasGroupBy(GroupBy orig, GroupBy mv) {
+    private void mvHasGroupBy(GroupBy orig, GroupBy mv)
+    {
         if (!Objects.equals(orig.isDistinct(), mv.isDistinct())) {
             notFit("not match : groupBy : groupBy has different isDistinct()");
             return;
@@ -156,7 +163,8 @@ public class GroupByRewriter {
             // same groupBy
             LOG.debug("original and mv has same groupBy, no compensation");
             processHaving();
-        } else {
+        }
+        else {
             LOG.debug("original and mv has different groupBy, need compensation");
             rewriteSimpleGroupBy(orig.isDistinct(), origGroupByColumn);
             processHaving();
@@ -166,7 +174,8 @@ public class GroupByRewriter {
     /**
      * rewrite query groupBy: column replace
      */
-    private void rewriteSimpleGroupBy(boolean isDistinct, List<QualifiedColumn> origGroupColumn) {
+    private void rewriteSimpleGroupBy(boolean isDistinct, List<QualifiedColumn> origGroupColumn)
+    {
         List<GroupingElement> groupingElements = new ArrayList<>(origGroupColumn.size());
         groupColumns = new HashSet<>();
 
@@ -192,7 +201,8 @@ public class GroupByRewriter {
      * - colA = colB
      * - colA > 4
      */
-    private void processHaving() {
+    private void processHaving()
+    {
         Optional<Expression> mvHavingOpt = mvSpec.getHaving();
         Optional<Expression> origHavingOpt = origSpec.getHaving();
         if (origHavingOpt.isEmpty()) {
@@ -203,13 +213,13 @@ public class GroupByRewriter {
         }
         // now original has having clause
 
-
         if (mvHavingOpt.isPresent()) {
             if (sameWhere && resultGroupBy.isPresent()) {
                 // case: same where/groupBy
                 // TODO if having same, then fit, else not fit
                 throw new UnsupportedOperationException("TODO if having same, then fit, else not fit");
-            } else {
+            }
+            else {
                 notFit("having: mv has having clause, but where/groupBy clause not the same");
             }
             return;
@@ -235,7 +245,8 @@ public class GroupByRewriter {
         boolean sameGroupBy = resultGroupBy.isEmpty();
         if (sameGroupBy) {
             sameGroupByRewriteHaving(origAnalysis);
-        } else {
+        }
+        else {
             differentGroupByRewriteHaving(origAnalysis);
         }
     }
@@ -244,7 +255,8 @@ public class GroupByRewriter {
      * sameGroupBy 导致没有了 having clause
      * 尝试将这些 original having clause ====> where clause 中
      */
-    private void sameGroupByRewriteHaving(PredicateAnalysis origHaving) {
+    private void sameGroupByRewriteHaving(PredicateAnalysis origHaving)
+    {
         ExpressionRewriter rewriter = new HavingToWhereRewriteVisitor(
                 specRewriter.getMvSelectableColumnExtend(), specRewriter.getColumnRefMap(), mvDetail);
 
@@ -264,7 +276,8 @@ public class GroupByRewriter {
         resultWhere = Optional.of(expr);
     }
 
-    private void differentGroupByRewriteHaving(PredicateAnalysis origHaving) {
+    private void differentGroupByRewriteHaving(PredicateAnalysis origHaving)
+    {
         boolean isMvHasGroupBy = mvDetail.getMvQuerySpec().getGroupBy().isPresent();
         ExpressionRewriter rewriter = new HavingRewriteVisitor(
                 specRewriter.getMvSelectableColumnExtend(), specRewriter.getColumnRefMap(), mvDetail, isMvHasGroupBy);
@@ -289,7 +302,8 @@ public class GroupByRewriter {
     /**
      * 从 groupBy中, 提取 groupBy 使用的col字段
      */
-    private List<QualifiedColumn> extractGroupColumn(List<GroupingElement> groupingElements, Map<Expression, QualifiedColumn> refMap) {
+    private List<QualifiedColumn> extractGroupColumn(List<GroupingElement> groupingElements, Map<Expression, QualifiedColumn> refMap)
+    {
         List<QualifiedColumn> resultList = new ArrayList<>(groupingElements.size());
         for (GroupingElement element : groupingElements) {
             if (!(element instanceof SimpleGroupBy)) {
@@ -314,29 +328,35 @@ public class GroupByRewriter {
         return resultList;
     }
 
-    public boolean isMvFit() {
+    public boolean isMvFit()
+    {
         return queryRewriter.isMvFit();
     }
 
-    public void notFit(String reason) {
+    public void notFit(String reason)
+    {
         queryRewriter.notFit(reason);
     }
 
     // ======== get
 
-    public Set<QualifiedColumn> getGroupColumns() {
+    public Set<QualifiedColumn> getGroupColumns()
+    {
         return groupColumns;
     }
 
-    public Optional<GroupBy> getResultGroupBy() {
+    public Optional<GroupBy> getResultGroupBy()
+    {
         return resultGroupBy;
     }
 
-    public Optional<Expression> getResultHaving() {
+    public Optional<Expression> getResultHaving()
+    {
         return resultHaving;
     }
 
-    public Optional<Expression> getResultWhere() {
+    public Optional<Expression> getResultWhere()
+    {
         return resultWhere;
     }
 }

@@ -3,81 +3,86 @@
 
 # base_table & mv
 ```sql
-DROP TABLE if exists iceberg.kernel_db01.part04_5;
+USE iceberg.kernel_db01;
 
-CREATE TABLE iceberg.kernel_db01.part04_5
+DROP TABLE if exists part04_5;
+
+CREATE TABLE part04_5
 as
 select partkey, mfgr, brand, type, size, retailprice, container
 from tpch.tiny.part;
 
 
 -- mv
-create or replace materialized view iceberg.kernel_db01.mv_part04_5 as
+create or replace materialized view mv_part04_5 as
 SELECT 	mfgr mfgr2,
-          iceberg.kernel_db01.part04_5.brand,
+          part04_5.brand,
           sum(size) as sum_size,
           count(size) as cnt_size,
           max(retailprice) as max_price,
           min(retailprice) as min_price,
           sum(retailprice) as sum_price,
           avg(retailprice) as avg_price,
+          count(retailprice) as cnt_price,
           count(*) as cnt_star,
           count(999) as cnt_const
-from iceberg.kernel_db01.part04_5
+from part04_5
 GROUP BY mfgr, brand, container
 ;
 
-refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part04_5;
+refresh MATERIALIZED VIEW mv_part04_5;
 
-select count(1) from iceberg.kernel_db01.mv_part04_5;
-select * from iceberg.kernel_db01.mv_part04_5;
--- drop materialized view iceberg.kernel_db01.mv_part04_5 ;
--- drop table iceberg.kernel_db01.part04_5;
+select count(1) from mv_part04_5;
+select * from mv_part04_5;
+-- drop materialized view mv_part04_5 ;
+-- drop table part04_5;
 ```
 
 ## 测试sql
 ```sql
+set session query_rewrite_with_materialized_view_status = 2;
+
 -- 不同groupBy, original 多了having max(colA), 且 having字段直接存在, 可以替换
 SELECT mfgr, brand
-from iceberg.kernel_db01.part04_5
+from part04_5
 GROUP BY mfgr, brand
 having max(retailprice) > 1620;
 -- 手动改写
 select mfgr2, brand
-from iceberg.kernel_db01.mv_part04_5
+from mv_part04_5
 GROUP BY mfgr2, brand
-having max(max_price) > 1620
+having max(max_price) > 1620;
 
 
 
 
 
--- 不同groupBy, original 多了having max/min
+-- 不同groupBy, original 多了having max/min, fit
 SELECT mfgr, brand, avg(retailprice) as avg_price
-from iceberg.kernel_db01.part04_5
+from part04_5
 GROUP BY mfgr, brand
 having max(retailprice) < 1890
    and min(retailprice) > 910
-   and avg(retailprice) < 1390
+   and avg(retailprice) < 1390;
 -- 手动改写
-SELECT mfgr2, brand, sum(sum_price)/sum(cnt_star) as avg_price
-from iceberg.kernel_db01.mv_part04_5
+SELECT mfgr2, brand, sum(sum_price)/sum(cnt_price) as avg_price
+from mv_part04_5
 GROUP BY mfgr2, brand
 having max(max_price) < 1890
    and min(min_price) > 910
-   and sum(sum_price)/sum(cnt_star) < 1390
+   and sum(sum_price)/sum(cnt_price) < 1390;
 
 
 -- max/min/avg
 SELECT mfgr, brand -- , avg(retailprice) as avg_price
-from iceberg.kernel_db01.part04_5
+from part04_5
 GROUP BY mfgr, brand
 having max(retailprice) < 1890
    and min(retailprice) > 910
-   and avg(retailprice) < 1390
+   and avg(retailprice) < 1390;
 -- 手动改写
 SELECT mfgr2, brand -- , sum(sum_price)/sum(cnt_star) as avg_price
-from iceberg.kernel_db01.mv_part04_5
+from mv_part04_5
 GROUP BY mfgr2, brand
 having max(max_price) < 1890
    and min(min_price) > 910

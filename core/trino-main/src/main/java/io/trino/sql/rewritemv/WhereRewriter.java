@@ -25,7 +25,8 @@ import static io.trino.sql.tree.ComparisonExpression.Operator.EQUAL;
 /**
  * rewrite where条件
  */
-public class WhereRewriter {
+public class WhereRewriter
+{
     private static final Logger LOG = Logger.get(WhereRewriter.class);
     private final QueryRewriter queryRewriter;
     private final QuerySpecificationRewriter specRewriter;
@@ -35,7 +36,8 @@ public class WhereRewriter {
     // 在ec加持下, mv可选字段. 注意: 这个对象不是 mv持有
     private Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
 
-    public WhereRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail) {
+    public WhereRewriter(QuerySpecificationRewriter specRewriter, MvDetail mvDetail)
+    {
         this.specRewriter = specRewriter;
         this.queryRewriter = specRewriter.getQueryRewriter();
         this.mvDetail = mvDetail;
@@ -47,7 +49,8 @@ public class WhereRewriter {
     /**
      * 返回改写后的 where
      */
-    public Expression process() {
+    public Expression process()
+    {
         Optional<Expression> optWhere = queryRewriter.getSpec().getWhere();
         Optional<Expression> mvWhere = mvDetail.getMvQuerySpec().getWhere();
 
@@ -81,7 +84,8 @@ public class WhereRewriter {
      * 2. originalWhereAnalysis 多下来的条件, 需要适当的改写
      * where a=b vs where a=1 and b=1, 虽然后者能够推到前者, 但是目前不做这方面工作
      */
-    private Expression compareAndRewriteWhere() {
+    private Expression compareAndRewriteWhere()
+    {
         // === 处理equal条件
         List<Predicate> compensation = new ArrayList<>();
         String errProcessEqual = PredicateUtil.processPredicateEqual(
@@ -129,7 +133,8 @@ public class WhereRewriter {
         return PredicateUtil.logicAnd(conditions);
     }
 
-    private List<Expression> parseAtomicWhere(List<Predicate> compensation) {
+    private List<Expression> parseAtomicWhere(List<Predicate> compensation)
+    {
         List<Expression> list = new ArrayList<>(compensation.size() + 3);
 
         for (Predicate predicate : compensation) {
@@ -148,7 +153,8 @@ public class WhereRewriter {
                     return list;
                 }
                 list.add(new ComparisonExpression(EQUAL, mvLeft, mvRight));
-            } else if (predicate instanceof PredicateRange) {
+            }
+            else if (predicate instanceof PredicateRange) {
                 PredicateRange pr = (PredicateRange) predicate;
                 DereferenceExpression columnInMv = RewriteUtils.findColumnInMv(pr.getLeft(), mvSelectableColumnExtend, mvDetail.getTableNameExpression());
                 if (pr.getEqual() != PredicateRange.PredicateRangeBound.UNBOUND) {
@@ -160,7 +166,8 @@ public class WhereRewriter {
                 if (pr.getUpper() != PredicateRange.PredicateRangeBound.UNBOUND) {
                     list.add(new ComparisonExpression(pr.getUpper().getOp(), columnInMv, pr.getUpper().getValue()));
                 }
-            } else {
+            }
+            else {
                 // PredicateOther
                 PredicateOther other = (PredicateOther) predicate;
                 // 需要替换 column
@@ -171,19 +178,23 @@ public class WhereRewriter {
         return list;
     }
 
-    private boolean isMvFit() {
+    private boolean isMvFit()
+    {
         return queryRewriter.isMvFit();
     }
 
-    public void notFit(String reason) {
+    public void notFit(String reason)
+    {
         queryRewriter.notFit(reason);
     }
 
-    public PredicateAnalysis getWherePredicate() {
+    public PredicateAnalysis getWherePredicate()
+    {
         return wherePredicate;
     }
 
-    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExtend() {
+    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExtend()
+    {
         return mvSelectableColumnExtend;
     }
 }

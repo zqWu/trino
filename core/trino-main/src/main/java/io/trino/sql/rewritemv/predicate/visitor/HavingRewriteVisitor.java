@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-
 /**
  * mv 和 query 有着不同的 groupBy, 且query有having时, 才进行这样的改写
  * <p>
@@ -23,19 +22,23 @@ import java.util.Map;
  * - column替换
  * - 函数支持
  */
-public class HavingRewriteVisitor extends FunctionCallVisitor {
+public class HavingRewriteVisitor
+        extends FunctionCallVisitor
+{
     private static final Logger LOG = Logger.get(HavingRewriteVisitor.class);
     private final boolean isMvGrouped;
 
     public HavingRewriteVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                                Map<Expression, QualifiedColumn> columnRefMap,
-                                MvDetail mvDetail, boolean isMvGrouped) {
+            Map<Expression, QualifiedColumn> columnRefMap,
+            MvDetail mvDetail, boolean isMvGrouped)
+    {
         super(mvSelectableColumnExtend, columnRefMap, mvDetail);
         this.isMvGrouped = isMvGrouped;
     }
 
     @Override
-    protected Expression doVisitFunctionCall(FunctionCall node, Void context) {
+    protected Expression doVisitFunctionCall(FunctionCall node, Void context)
+    {
         // mv自身进行了 groupBy, 对 having 需要做处理
         if (!isMvGrouped) {
             // "mv自身没有进行groupBy, 那这些 having, 稍加改写就可以直接放出去"
@@ -74,7 +77,8 @@ public class HavingRewriteVisitor extends FunctionCallVisitor {
     /**
      * mv 没有groupBy时, 只需要替换 functionCall的参数即可
      */
-    private Expression onMvNotGroupBy(FunctionCall node, Void context) {
+    private Expression onMvNotGroupBy(FunctionCall node, Void context)
+    {
         QualifiedName funName = node.getName();
         List<Expression> origArgs = node.getArguments();
         List<Expression> rewriteArgs = new ArrayList<>(origArgs.size());
@@ -82,7 +86,8 @@ public class HavingRewriteVisitor extends FunctionCallVisitor {
             Expression after = process(before, context);
             if (after != null) { // 替换失败
                 rewriteArgs.add(after);
-            } else {
+            }
+            else {
                 return null;
             }
         }
@@ -101,7 +106,8 @@ public class HavingRewriteVisitor extends FunctionCallVisitor {
      * @param funName max
      * @param node like FunctionCall("max", "price")
      */
-    private Expression processOneArgFunction(FunctionCall node, QualifiedName funName) {
+    private Expression processOneArgFunction(FunctionCall node, QualifiedName funName)
+    {
         List<Expression> arguments = node.getArguments();
         Expression arg1 = arguments.get(0);
 
@@ -118,7 +124,8 @@ public class HavingRewriteVisitor extends FunctionCallVisitor {
                 return null;
             }
             return new FunctionCall(funName, List.of(expr));
-        } else {
+        }
+        else {
             // 比如 having max(colA+colB) > 10 这种结构, 暂不支持
             LOG.warn("max function has complex expression, not support");
             return null;
@@ -130,12 +137,12 @@ public class HavingRewriteVisitor extends FunctionCallVisitor {
      * 可能有0/1个参数
      * count(x) =======> sum(count_x)
      */
-    private Expression processFunctionCount(FunctionCall node, QualifiedName funName) {
+    private Expression processFunctionCount(FunctionCall node, QualifiedName funName)
+    {
         Expression expr = super.processFunctionCount(node, funName, false);
         if (expr != null) {
             return new FunctionCall(FUNCTION_SUM, List.of(expr));
         }
         return null;
     }
-
 }

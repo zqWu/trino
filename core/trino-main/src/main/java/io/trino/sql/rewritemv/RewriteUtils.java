@@ -29,14 +29,16 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class RewriteUtils {
+public class RewriteUtils
+{
     public static final Logger LOG = Logger.get(RewriteUtils.class);
 
     /**
      * util
      * 获取 node-ResolvedField map
      */
-    public static Map<Expression, QualifiedColumn> extractColumnReferenceMap(Analysis analysis) {
+    public static Map<Expression, QualifiedColumn> extractColumnReferenceMap(Analysis analysis)
+    {
         Map<NodeRef<Expression>, ResolvedField> columnReferenceFields = analysis.getColumnReferenceFields();
         Map<Expression, QualifiedColumn> map = new HashMap<>(columnReferenceFields.size());
 
@@ -55,7 +57,8 @@ public class RewriteUtils {
      * util
      * 从 ResolvedField中提取 QualifiedColumn, 没有字段则返回null
      */
-    private static QualifiedColumn extractFromResolvedField(ResolvedField resolvedField) {
+    private static QualifiedColumn extractFromResolvedField(ResolvedField resolvedField)
+    {
         Field field = resolvedField.getField();
         Optional<QualifiedObjectName> table = field.getOriginTable();
         Optional<String> column = field.getOriginColumnName();
@@ -70,8 +73,9 @@ public class RewriteUtils {
      * 抽取 mv select中的 single column, 这些字段可用于后续使用
      */
     public static Map<QualifiedColumn, SelectItem> extractSelectSingleField(QuerySpecification spec,
-                                                                            Map<Expression, QualifiedColumn> columnRefMap,
-                                                                            PredicateAnalysis whereAnalysis) {
+            Map<Expression, QualifiedColumn> columnRefMap,
+            PredicateAnalysis whereAnalysis)
+    {
         Select select = spec.getSelect();
         Map<QualifiedColumn, SelectItem> map = new HashMap<>();
 
@@ -91,9 +95,11 @@ public class RewriteUtils {
                 if (column1 != null) {
                     map.put(column1, selectItem);
                 }
-            } else if (expression instanceof FunctionCall) {
+            }
+            else if (expression instanceof FunctionCall) {
                 // LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
-            } else {
+            }
+            else {
                 // LOG.warn("TODO: ignore non SingleColumn [%s] ", expression);
             }
         }
@@ -102,7 +108,8 @@ public class RewriteUtils {
     }
 
     // 把 ec加到 selectable中去, 比如 select colA ... where colA=colB, 则 colA和 colB都是 selectable
-    public static Map<QualifiedColumn, SelectItem> extendSelectableColumnByEc(Map<QualifiedColumn, SelectItem> in, List<EquivalentClass> ecList) {
+    public static Map<QualifiedColumn, SelectItem> extendSelectableColumnByEc(Map<QualifiedColumn, SelectItem> in, List<EquivalentClass> ecList)
+    {
         if (ecList == null || ecList.size() == 0) {
             return in;
         }
@@ -132,7 +139,8 @@ public class RewriteUtils {
      * util
      * 获取一个 column的 最后一个部分
      */
-    public static Identifier getNameLastPart(SingleColumn column) {
+    public static Identifier getNameLastPart(SingleColumn column)
+    {
         Optional<Identifier> alias = column.getAlias();
         if (alias.isPresent()) {
             return alias.get();
@@ -153,7 +161,8 @@ public class RewriteUtils {
         throw new UnsupportedOperationException("error occurs when get last part of a column");
     }
 
-    public static List<Table> extractBaseTable(Relation relation) {
+    public static List<Table> extractBaseTable(Relation relation)
+    {
         List<Table> list = new ArrayList<>();
 
         if (relation instanceof AliasedRelation) {
@@ -162,7 +171,8 @@ public class RewriteUtils {
 
         if (relation instanceof Table) {
             list.add((Table) relation);
-        } else {
+        }
+        else {
             // TODO
         }
 
@@ -170,7 +180,8 @@ public class RewriteUtils {
     }
 
     public static DereferenceExpression findColumnInMv(QualifiedColumn col,
-                                                       Map<QualifiedColumn, SelectItem> colMap, DereferenceExpression table) {
+            Map<QualifiedColumn, SelectItem> colMap, DereferenceExpression table)
+    {
         SelectItem selectItem = colMap.get(col);
         if (selectItem == null) {
             return null;
@@ -187,20 +198,20 @@ public class RewriteUtils {
         // select catalog.schema.table.colA =========== DereferenceExpression ============> 得到 [c.s.t].colA
         // select catalog.schema.table.colA as colX === DereferenceExpression  + alias ===> 得到 [c.s.t].colX
 
-
         Identifier identifier = null;
         if (column.getAlias().isPresent()) {
             identifier = column.getAlias().get();
-        } else {
+        }
+        else {
             Expression columnExpression = column.getExpression();
             if (columnExpression instanceof DereferenceExpression) {
                 identifier = ((DereferenceExpression) columnExpression).getField().get();
-            } else {
+            }
+            else {
                 identifier = (Identifier) columnExpression;
             }
         }
 
         return new DereferenceExpression(table, identifier);
     }
-
 }

@@ -6,7 +6,8 @@ import io.trino.metadata.Metadata;
 import io.trino.sql.analyzer.StatementAnalyzerFactory;
 import io.trino.sql.parser.SqlParser;
 
-public class MaterializedViewRewriteHelper {
+public class MaterializedViewRewriteHelper
+{
     private static final Logger LOG = Logger.get(MaterializedViewRewriteHelper.class);
     private static MaterializedViewRewriteHelper instance;
     private final Metadata metadata;
@@ -14,26 +15,31 @@ public class MaterializedViewRewriteHelper {
     private final StatementAnalyzerFactory statementAnalyzerFactory;
 
     @Inject
-    public MaterializedViewRewriteHelper(Metadata metadata, SqlParser sqlParser, StatementAnalyzerFactory statementAnalyzerFactory) {
+    public MaterializedViewRewriteHelper(Metadata metadata, SqlParser sqlParser, StatementAnalyzerFactory statementAnalyzerFactory)
+    {
         this.metadata = metadata;
         this.sqlParser = sqlParser;
         this.statementAnalyzerFactory = statementAnalyzerFactory;
         MaterializedViewRewriteHelper.instance = this;
     }
 
-    public static MaterializedViewRewriteHelper getInstance() {
+    public static MaterializedViewRewriteHelper getInstance()
+    {
         return instance;
     }
 
-    public Metadata getMetadata() {
+    public Metadata getMetadata()
+    {
         return metadata;
     }
 
-    public SqlParser getSqlParser() {
+    public SqlParser getSqlParser()
+    {
         return sqlParser;
     }
 
-    public StatementAnalyzerFactory getStatementAnalyzerFactory() {
+    public StatementAnalyzerFactory getStatementAnalyzerFactory()
+    {
         return statementAnalyzerFactory;
     }
 }

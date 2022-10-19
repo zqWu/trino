@@ -20,41 +20,45 @@
 
 # base_table & mv
 ```sql
-DROP TABLE if exists iceberg.kernel_db01.part01_1;
+USE iceberg.kernel_db01;
 
-CREATE TABLE iceberg.kernel_db01.part01_1
+DROP TABLE if exists part01_1;
+
+CREATE TABLE part01_1
 as select * from tpch.tiny.part;
--- select count(*) from iceberg.kernel_db01.part01_1; -- 2000
+-- select count(*) from part01_1; -- 2000
 
 -- mv定义
-create or replace materialized view iceberg.kernel_db01.mv_part01_1 as
+create or replace materialized view mv_part01_1 as
 SELECT mfgr mfgr2, brand, type type2, size size2
-from iceberg.kernel_db01.part01_1
+from part01_1
 where 1=1 and 2=2 and mfgr='Manufacturer#1'
 GROUP BY mfgr, brand, type, size;
 
-refresh MATERIALIZED VIEW iceberg.kernel_db01.mv_part01_1;
+refresh MATERIALIZED VIEW mv_part01_1;
 
--- select * from iceberg.kernel_db01.mv_part01_1;
--- drop materialized view iceberg.kernel_db01.mv_part01_1 ;
--- drop table iceberg.kernel_db01.part01_1;
+-- select * from mv_part01_1;
+-- drop materialized view mv_part01_1 ;
+-- drop table part01_1;
 ```
 
 ## 测试sql, 预期能够替换
 ```sql
+set session query_rewrite_with_materialized_view_status = 2;
+
 -- sql1
-SELECT mfgr, brand, type, count(1) as _cnt
-from iceberg.kernel_db01.part01_1
-    where 1=1
-    and mfgr=mfgr
-    and 'Manufacturer#1'=mfgr
-    and (brand='Brand#14' and size = 7)
+SELECT mfgr, brand, type
+from part01_1
+where 1=1
+  and mfgr=mfgr
+  and 'Manufacturer#1'=mfgr
+  and (brand='Brand#14' and size = 7)
 GROUP BY mfgr, brand, type
 ;
 
 -- sql2
 SELECT mfgr, brand, type
-from iceberg.kernel_db01.part01_1
+from part01_1
     where 1=1
     and mfgr=mfgr
     and 'Manufacturer#1'=mfgr
@@ -62,3 +66,4 @@ from iceberg.kernel_db01.part01_1
 GROUP BY mfgr, brand, type,size
 ;
 ```
+

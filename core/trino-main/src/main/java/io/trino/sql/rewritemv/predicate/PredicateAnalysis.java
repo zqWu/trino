@@ -7,7 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-public class PredicateAnalysis {
+public class PredicateAnalysis
+{
     private boolean support = true;     // false when not support
     private String reason;              // why not support
     private final List<PredicateEqual> equalList = new ArrayList<>();
@@ -18,15 +19,18 @@ public class PredicateAnalysis {
     // 不要对 EMPTY_PREDICATE 进行任何写操作
     public static final PredicateAnalysis EMPTY_PREDICATE = new PredicateAnalysis();
 
-    public PredicateAnalysis() {
+    public PredicateAnalysis()
+    {
     }
 
-    public void notSupport(String reason) {
+    public void notSupport(String reason)
+    {
         support = false;
         this.reason = reason;
     }
 
-    public void build() {
+    public void build()
+    {
         // 整理 equivalent class
         List<EquivalentClass> ecb = new ArrayList<>(equalList.size());
         for (PredicateEqual pe : equalList) {
@@ -45,13 +49,14 @@ public class PredicateAnalysis {
             EquivalentClass targetEc = ecList.stream().filter(ec -> ec.contain(col)).findAny().get();
             pr.setEc(targetEc);
         }
-
     }
 
-    public void addPredicate(Predicate p) {
+    public void addPredicate(Predicate p)
+    {
         if (p instanceof PredicateEqual) {
             equalList.add((PredicateEqual) p);
-        } else if (p instanceof PredicateRange) {
+        }
+        else if (p instanceof PredicateRange) {
             rangeList.add((PredicateRange) p);
         }
 
@@ -64,7 +69,8 @@ public class PredicateAnalysis {
     /**
      * 是否包含有效的 predicate 条件 == 有些条件不是always true
      */
-    public boolean hasEffectivePredicate() {
+    public boolean hasEffectivePredicate()
+    {
         if (this == EMPTY_PREDICATE) {
             return false;
         }
@@ -84,27 +90,33 @@ public class PredicateAnalysis {
 
     // ==================== getter ==========
 
-    public List<EquivalentClass> getEcList() {
+    public List<EquivalentClass> getEcList()
+    {
         return ecList;
     }
 
-    public List<PredicateEqual> getEqualList() {
+    public List<PredicateEqual> getEqualList()
+    {
         return equalList;
     }
 
-    public List<PredicateRange> getRangeList() {
+    public List<PredicateRange> getRangeList()
+    {
         return rangeList;
     }
 
-    public List<PredicateOther> getOtherList() {
+    public List<PredicateOther> getOtherList()
+    {
         return otherList;
     }
 
-    public String getReason() {
+    public String getReason()
+    {
         return reason;
     }
 
-    public boolean isSupport() {
+    public boolean isSupport()
+    {
         return support;
     }
 }

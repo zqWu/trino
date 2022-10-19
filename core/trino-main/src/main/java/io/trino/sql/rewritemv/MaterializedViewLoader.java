@@ -8,6 +8,7 @@ import io.trino.metadata.Metadata;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.metadata.QualifiedTablePrefix;
 import io.trino.metadata.ViewInfo;
+import io.trino.spi.connector.MaterializedViewFreshness;
 import io.trino.sql.ParsingUtil;
 import io.trino.sql.analyzer.Analysis;
 import io.trino.sql.analyzer.CorrelationSupport;
@@ -22,33 +23,21 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * TODO 未完成
+ * load mv from catalog
  */
-public class MaterializedViewLoader {
+public class MaterializedViewLoader
+{
     private static final Logger LOG = Logger.get(MaterializedViewLoader.class);
     private static boolean sync = false;
     private static Map<QualifiedObjectName, MvDetail> mvCache = new HashMap<>();
 
+    // skip some mv, only for test
     private static List<QualifiedObjectName> skipList = Arrays.asList(
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part01_1"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part02_1"),
-//
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_1"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part03_2"),
-//
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_1"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_2"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_3"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_4"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_5"),
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part04_6"),
-//
-//            new QualifiedObjectName("iceberg", "kernel_db01", "mv_part05_1"),
-
             new QualifiedObjectName("iceberg", "kernel_db01", "na")
     );
 
-    public static void invalidate() {
+    public static void invalidate()
+    {
         if (sync) {
             LOG.debug("invalidate mv cache");
             mvCache.clear();
@@ -56,7 +45,8 @@ public class MaterializedViewLoader {
         }
     }
 
-    public static Map<QualifiedObjectName, MvDetail> getMv(Session session) {
+    public static Map<QualifiedObjectName, MvDetail> getMv(Session session)
+    {
         loadMaterializedViewOnlyOnce(session);
         return mvCache;
     }
@@ -67,8 +57,10 @@ public class MaterializedViewLoader {
      * 2 how to invalidate cache
      * get all materialized view definition and their Analysis
      */
-    private static void loadMaterializedViewOnlyOnce(Session session) {
+    private static void loadMaterializedViewOnlyOnce(Session session)
+    {
         if (sync) {
+            // retrieveFreshness(session);
             return;
         }
 
@@ -87,7 +79,8 @@ public class MaterializedViewLoader {
                 }
 
                 if (!mvCache.containsKey(name)) {
-                    addToCache(session, name, materializedViews.get(name));
+                    MaterializedViewFreshness fresh = metadata.getMaterializedViewFreshness(session, name);
+                    addToCache(session, name, materializedViews.get(name), fresh.isMaterializedViewFresh());
                 }
             }
         }
@@ -95,7 +88,21 @@ public class MaterializedViewLoader {
         LOG.debug(String.format("load mv time cost=[%s]ms", cost));
     }
 
-    private static synchronized void addToCache(Session session, QualifiedObjectName name, ViewInfo viewInfo) {
+    private static void retrieveFreshness(Session session)
+    {
+        Metadata metadata = MaterializedViewRewriteHelper.getInstance().getMetadata();
+        for (Map.Entry<QualifiedObjectName, MvDetail> entry : mvCache.entrySet()) {
+            MvDetail mvDetail = entry.getValue();
+            boolean fresh1 = mvDetail.isFresh();
+            QualifiedObjectName name = entry.getKey();
+            MaterializedViewFreshness freshness = metadata.getMaterializedViewFreshness(session, name);
+            boolean fresh2 = freshness.isMaterializedViewFresh();
+            LOG.debug("name=[%s], fresh1=[%s], fresh2=[%s]", name, fresh1, fresh2);
+        }
+    }
+
+    private static synchronized void addToCache(Session session, QualifiedObjectName name, ViewInfo viewInfo, boolean mvFresh)
+    {
         MaterializedViewRewriteHelper helper = MaterializedViewRewriteHelper.getInstance();
 
         String mvSql = viewInfo.getOriginalSql();
@@ -109,12 +116,13 @@ public class MaterializedViewLoader {
         analyzer.analyze(statement, Optional.empty());
 
         MvDetail entry = new MvDetail(name, statement, viewInfo, analysis);
+        entry.setFresh(mvFresh);
         mvCache.put(name, entry);
     }
 
-    public static void initForTest(Map<QualifiedObjectName, MvDetail> cache) {
+    public static void initForTest(Map<QualifiedObjectName, MvDetail> cache)
+    {
         mvCache = cache;
         sync = true;
     }
-
 }

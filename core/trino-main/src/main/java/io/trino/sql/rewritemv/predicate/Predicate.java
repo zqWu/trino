@@ -5,8 +5,10 @@ import io.trino.sql.tree.Expression;
 /**
  * atomic where = an expression which result is true / false
  */
-public abstract class Predicate {
-    public enum PredicateType {
+public abstract class Predicate
+{
+    public enum PredicateType
+    {
         COLUMN_EQUAL,           // predicate equal, colA = colB
         COLUMN_RANGE,           // predicate range, colA > 3
         // LITERAL_EQUAL,          // 3 = 2
@@ -19,27 +21,31 @@ public abstract class Predicate {
     protected final Expression expr;
     protected final PredicateType predicateType;
 
-    public Predicate(Expression expr, PredicateType predicateType) {
+    public Predicate(Expression expr, PredicateType predicateType)
+    {
         this.expr = expr;
         this.predicateType = predicateType;
     }
 
     // ========get
 
-    public boolean isAlwaysFalse() {
+    public boolean isAlwaysFalse()
+    {
         return alwaysFalse;
     }
 
-    public boolean isAlwaysTrue() {
+    public boolean isAlwaysTrue()
+    {
         return alwaysTrue;
     }
 
-    public Expression getExpr() {
+    public Expression getExpr()
+    {
         return expr;
     }
 
-    public PredicateType getPredicateType() {
+    public PredicateType getPredicateType()
+    {
         return predicateType;
     }
-
 }

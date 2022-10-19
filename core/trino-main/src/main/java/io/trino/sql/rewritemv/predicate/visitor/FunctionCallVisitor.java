@@ -18,19 +18,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
+public abstract class FunctionCallVisitor
+        extends WhereColumnRewriteVisitor
+{
     protected static final Logger LOG = Logger.get(FunctionCallVisitor.class);
     protected static final List<String> SUPPORTED_FUNCTION = Arrays.asList("avg", "count", "max", "min", "sum");
     protected static final QualifiedName FUNCTION_SUM = QualifiedName.of("sum");
     protected static final QualifiedName FUNCTION_COUNT = QualifiedName.of("count");
 
     public FunctionCallVisitor(Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend,
-                               Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail) {
+            Map<Expression, QualifiedColumn> origColumnRefMap, MvDetail mvDetail)
+    {
         super(mvSelectableColumnExtend, origColumnRefMap, mvDetail);
     }
 
     @Override
-    protected Expression visitFunctionCall(FunctionCall node, Void context) {
+    protected Expression visitFunctionCall(FunctionCall node, Void context)
+    {
         // mv自身进行了 groupBy, 对 having 需要做处理
         QualifiedName funName = node.getName();
         String name = funName.getSuffix();
@@ -43,7 +47,8 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
         Expression after = doVisitFunctionCall(node, context);
         if (after != null) {
             LOG.debug(String.format("having rewrite: %s ===> %s", node, after));
-        } else {
+        }
+        else {
             LOG.debug(String.format("having rewrite: fail %s", node));
         }
         return after;
@@ -59,7 +64,8 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
      * @param columnArg 函数列作为参数
      * @return null if not possible
      */
-    protected final Expression findAndRewriteSelectItemIfPossible(QualifiedName funName, QualifiedColumn columnArg) {
+    protected final Expression findAndRewriteSelectItemIfPossible(QualifiedName funName, QualifiedColumn columnArg)
+    {
         SelectItem selectItem = findSelectItemInMvUseFunction(funName, columnArg);
         if (selectItem == null) {
             LOG.debug(String.format("mv中未找到 %s(%s)", funName.getSuffix(), columnArg));
@@ -81,7 +87,8 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
      * @param columnArg 函数参数, columnArg
      * @return null if not found
      */
-    protected final SelectItem findSelectItemInMvUseFunction(QualifiedName funName, QualifiedColumn columnArg) {
+    protected final SelectItem findSelectItemInMvUseFunction(QualifiedName funName, QualifiedColumn columnArg)
+    {
         Select select = mvDetail.getMvQuerySpec().getSelect();
         List<SelectItem> selectItems = select.getSelectItems();
 
@@ -109,7 +116,8 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
                 if (arguments.size() == 0) {
                     return selectItem;
                 }
-            } else {
+            }
+            else {
                 if (arguments.size() != 1) {
                     continue;
                 }
@@ -137,12 +145,14 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
      * @param enableCountAll 如果查找不到 count(colA), 是否允许 count(*) 替代, 注意 count(*) = count(1) = count(-99), 但是 count(colA) 与 不统计 colA=null的行, count(1) != count(colA)
      * @return 替换后的函数, null = fail to rewrite
      */
-    protected Expression processFunctionCount(FunctionCall node, QualifiedName funName, boolean enableCountAll) {
+    protected Expression processFunctionCount(FunctionCall node, QualifiedName funName, boolean enableCountAll)
+    {
         List<Expression> arguments = node.getArguments();
         QualifiedColumn columnArg = null;
         if (arguments.size() == 0) { // case: count(*)
             columnArg = null;
-        } else { // case: count(常数) or count(colA)
+        }
+        else { // case: count(常数) or count(colA)
             Expression arg1 = arguments.get(0);
             if (arg1 instanceof Identifier || arg1 instanceof DereferenceExpression) {
                 columnArg = origColumnRefMap.get(arg1);
@@ -150,7 +160,8 @@ public abstract class FunctionCallVisitor extends WhereColumnRewriteVisitor {
                     LOG.debug(String.format("mv中未找到需要的字段 %s", arg1));
                     return null;
                 }
-            } else if (arg1 instanceof Literal) {
+            }
+            else if (arg1 instanceof Literal) {
                 columnArg = null;
             }
         }

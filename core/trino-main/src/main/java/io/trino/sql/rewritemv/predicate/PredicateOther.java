@@ -5,8 +5,11 @@ import io.trino.sql.tree.Expression;
 
 import java.util.Objects;
 
-public class PredicateOther extends Predicate {
-    public PredicateOther(Expression expr) {
+public class PredicateOther
+        extends Predicate
+{
+    public PredicateOther(Expression expr)
+    {
         super(expr, PredicateType.OTHER);
 
         if (expr instanceof ComparisonExpression) {
@@ -17,5 +20,4 @@ public class PredicateOther extends Predicate {
             }
         }
     }
-
 }

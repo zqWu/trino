@@ -9,17 +9,21 @@ import java.util.Objects;
  * expression: colA = colB
  * 排序较小的作为 left, 排序较大的作为 right
  */
-public class PredicateEqual extends Predicate {
+public class PredicateEqual
+        extends Predicate
+{
     private final QualifiedColumn left;
     private final QualifiedColumn right;
 
-    public PredicateEqual(Expression expr, QualifiedColumn left, QualifiedColumn right) {
+    public PredicateEqual(Expression expr, QualifiedColumn left, QualifiedColumn right)
+    {
         super(expr, PredicateType.COLUMN_EQUAL);
 
         if (left.compareTo(right) > 0) {
             this.left = right;
             this.right = left;
-        } else {
+        }
+        else {
             this.left = left;
             this.right = right;
         }
@@ -29,16 +33,19 @@ public class PredicateEqual extends Predicate {
     }
 
     @Override
-    public String toString() {
+    public String toString()
+    {
         return left + "=" + right;
     }
 
     // ======== getter
-    public QualifiedColumn getLeft() {
+    public QualifiedColumn getLeft()
+    {
         return left;
     }
 
-    public QualifiedColumn getRight() {
+    public QualifiedColumn getRight()
+    {
         return right;
     }
 }

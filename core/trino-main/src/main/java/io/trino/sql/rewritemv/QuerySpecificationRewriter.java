@@ -2,17 +2,14 @@ package io.trino.sql.rewritemv;
 
 import io.airlift.log.Logger;
 import io.jsonwebtoken.lang.Collections;
+import io.trino.Session;
 import io.trino.metadata.QualifiedObjectName;
 import io.trino.sql.rewritemv.predicate.EquivalentClass;
 import io.trino.sql.rewritemv.predicate.PredicateUtil;
-import io.trino.sql.rewritemv.predicate.visitor.HavingRewriteVisitor;
 import io.trino.sql.rewritemv.predicate.visitor.SelectRewriteVisitor;
 import io.trino.sql.tree.AliasedRelation;
-import io.trino.sql.tree.AllColumns;
 import io.trino.sql.tree.AstVisitor;
-import io.trino.sql.tree.DereferenceExpression;
 import io.trino.sql.tree.Expression;
-import io.trino.sql.tree.FunctionCall;
 import io.trino.sql.tree.Identifier;
 import io.trino.sql.tree.Node;
 import io.trino.sql.tree.QualifiedName;
@@ -20,22 +17,22 @@ import io.trino.sql.tree.QuerySpecification;
 import io.trino.sql.tree.Relation;
 import io.trino.sql.tree.Select;
 import io.trino.sql.tree.SelectItem;
-import io.trino.sql.tree.SingleColumn;
 import io.trino.sql.tree.Table;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 import static io.trino.sql.rewritemv.RewriteUtils.extractColumnReferenceMap;
-import static io.trino.sql.rewritemv.RewriteUtils.getNameLastPart;
 
 /**
  * rewrite a specification by using a given mv if possible
  */
-public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
+public class QuerySpecificationRewriter
+        extends AstVisitor<Node, MvDetail>
+{
     private static final Logger LOG = Logger.get(QuerySpecificationRewriter.class);
     private final QueryRewriter queryRewriter;
     private final Map<Expression, QualifiedColumn> columnRefMap;
@@ -43,14 +40,18 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
     // ecList & mvSelectableColumnExpand 是 处理完where后得到的产物
     private List<EquivalentClass> ecList;
     private Map<QualifiedColumn, SelectItem> mvSelectableColumnExtend;
+    private final Session session;
 
-    public QuerySpecificationRewriter(QueryRewriter queryRewriter) {
+    public QuerySpecificationRewriter(QueryRewriter queryRewriter, Session session)
+    {
         this.queryRewriter = queryRewriter;
+        this.session = session;
         columnRefMap = extractColumnReferenceMap(queryRewriter.getAnalysis());
     }
 
     @Override
-    protected Node visitQuerySpecification(QuerySpecification node, MvDetail mvDetail) {
+    protected Node visitQuerySpecification(QuerySpecification node, MvDetail mvDetail)
+    {
         // TODO: fast check before rewrite
 
         if (!isMvFit()) {
@@ -83,11 +84,11 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             Expression where2 = groupByRewriter.getResultWhere().get();
             if (where.isPresent()) {
                 where = Optional.of(PredicateUtil.logicAnd(where.get(), where2));
-            } else {
+            }
+            else {
                 where = groupByRewriter.getResultWhere();
             }
         }
-
 
         // select
         Select select = processSelect(node, mvDetail);
@@ -109,7 +110,8 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return spec;
     }
 
-    private Select processSelect(QuerySpecification origSpec, MvDetail mvDetail) {
+    private Select processSelect(QuerySpecification origSpec, MvDetail mvDetail)
+    {
         QuerySpecification mvSpec = mvDetail.getMvQuerySpec();
         Select origSelect = origSpec.getSelect();
         Select mvSelect = mvSpec.getSelect();
@@ -129,7 +131,8 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return afterSelect;
     }
 
-    private Optional<Expression> processWhere(MvDetail mvDetail) {
+    private Optional<Expression> processWhere(MvDetail mvDetail)
+    {
         WhereRewriter whereRewriter = new WhereRewriter(this, mvDetail);
         Expression expression = whereRewriter.process();
         if (isMvFit()) {
@@ -139,14 +142,16 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
 
         if (expression == null) {
             return Optional.empty();
-        } else {
+        }
+        else {
             return Optional.of(expression);
         }
     }
 
     // currently only support simple table
     @Override
-    protected Node visitRelation(Relation node, MvDetail mvDetail) {
+    protected Node visitRelation(Relation node, MvDetail mvDetail)
+    {
         if (node instanceof AliasedRelation) {
             node = ((AliasedRelation) node).getRelation();
         }
@@ -164,12 +169,38 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
             Table mvTable = new Table(name);
             return mvTable;
         }
+
+        // node name normalize, then compare
+        if ((node instanceof Table) && (mvRelation instanceof Table)) {
+            QualifiedName nodeName = ((Table) node).getName();
+
+            List<Identifier> originalParts = nodeName.getOriginalParts();
+
+            if (originalParts.size() < 3) {
+                Optional<String> catalog = session.getCatalog();
+                Optional<String> schema = session.getSchema();
+                if (catalog.isPresent() && schema.isPresent()) {
+                    List<Identifier> parts = Arrays.asList(
+                            new Identifier(catalog.get()),
+                            new Identifier(schema.get()),
+                            originalParts.get(0)
+                    );
+                    nodeName = QualifiedName.of(parts);
+                }
+            }
+
+            if (nodeName.equals(((Table) mvRelation).getName())) {
+                return mvRelation;
+            }
+        }
+
         notFit(String.format("not match : table, require=%s, provided %s by %s",
                 node, mvRelation, mvDetail.getMvName()));
         return node;
     }
 
-    public EquivalentClass getEquivalentClassByColumn(QualifiedColumn column) {
+    public EquivalentClass getEquivalentClassByColumn(QualifiedColumn column)
+    {
         if (Collections.isEmpty(ecList)) {
             return null;
         }
@@ -182,29 +213,35 @@ public class QuerySpecificationRewriter extends AstVisitor<Node, MvDetail> {
         return null;
     }
 
-    public boolean isMvFit() {
+    public boolean isMvFit()
+    {
         return queryRewriter.isMvFit();
     }
 
-    public void notFit(String reason) {
+    public void notFit(String reason)
+    {
         queryRewriter.notFit(reason);
     }
 
     // ======== set get
 
-    public List<EquivalentClass> getEcList() {
+    public List<EquivalentClass> getEcList()
+    {
         return ecList;
     }
 
-    public QueryRewriter getQueryRewriter() {
+    public QueryRewriter getQueryRewriter()
+    {
         return queryRewriter;
     }
 
-    public Map<Expression, QualifiedColumn> getColumnRefMap() {
+    public Map<Expression, QualifiedColumn> getColumnRefMap()
+    {
         return columnRefMap;
     }
 
-    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExtend() {
+    public Map<QualifiedColumn, SelectItem> getMvSelectableColumnExtend()
+    {
         return mvSelectableColumnExtend;
     }
 }
