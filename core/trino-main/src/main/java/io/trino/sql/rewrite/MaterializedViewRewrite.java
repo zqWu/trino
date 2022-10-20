@@ -24,16 +24,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
+public class MaterializedViewRewrite
+        implements StatementRewrite.Rewrite
+{
     private static final Logger LOG = Logger.get(MaterializedViewRewrite.class);
 
     @Override
     public Statement rewrite(AnalyzerFactory analyzerFactory,
-                             Session session,
-                             Statement statement,
-                             List<Expression> parameters,
-                             Map<NodeRef<Parameter>, Expression> parameterLookup,
-                             WarningCollector warningCollector) {
+            Session session,
+            Statement statement,
+            List<Expression> parameters,
+            Map<NodeRef<Parameter>, Expression> parameterLookup,
+            WarningCollector warningCollector)
+    {
 
         int status = SystemSessionProperties.queryRewriteWithMaterializedViewStatus(session);
         if (status == 0) {
@@ -59,22 +62,23 @@ public class MaterializedViewRewrite implements StatementRewrite.Rewrite {
 
             Statement resultStatement = rewrite(session, originalAnalysis);
             return resultStatement;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             // if any exception happens, use original statement
             // original query has some error
             return statement;
         }
     }
 
-
-    private static Statement rewrite(Session session, Analysis original) {
+    private static Statement rewrite(Session session, Analysis original)
+    {
         if (original.getStatement() == null) {
             return null;
         }
 
         Statement result = original.getStatement();
         for (MvDetail entry : MaterializedViewLoader.getMv(session).values()) {
-            QueryRewriter rewriter = new QueryRewriter(original);
+            QueryRewriter rewriter = new QueryRewriter(original, session);
             result = (Statement) rewriter.process(original.getStatement(), entry);
             if (rewriter.isMvFit()) {
                 LOG.info("=====> !!! found mv fit sql [%s] !!!", entry.getMvName());
